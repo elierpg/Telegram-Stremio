@@ -9,6 +9,7 @@ from aiofiles.os import path as aiopath, remove as aioremove
 from pyrogram import Client
 from Backend.pyrofork.bot import StreamBot
 import re
+import unicodedata
 from pyrogram.types import BotCommand
 from pyrogram import enums
 
@@ -105,9 +106,9 @@ def clean_filename(filename: str) -> str:
     # 2 – Remove decorative unicode symbols
     filename = _DECORATION_PATTERN.sub(" ", filename)
 
-    # 3 – Replace any remaining non-ASCII characters with a space.
-    #     Keep standard filename-safe characters: alphanumerics, . - _ ( ) [ ] ' " , : ! ? & + @
-    filename = re.sub(r"[^\x20-\x7E]", " ", filename)
+    # 3 – Normalize accented characters to ASCII equivalents (Aída → Aida),
+    #     and drop any remaining non-ASCII (emojis not caught above, etc.).
+    filename = unicodedata.normalize("NFKD", filename).encode("ascii", "ignore").decode("ascii")
 
     # 4 – Remove Telegram channel tags  (@ChannelName_ etc.)
     filename = _CHANNEL_TAG_PATTERN.sub("", filename)

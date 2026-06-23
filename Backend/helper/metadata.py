@@ -614,7 +614,7 @@ def _parse_filename(filename: str) -> dict | None:
         result["episode"] = g.get("episode")
         result["year"] = g.get("year")
         # guessit calls resolution "screen_size" (e.g. "720p", "1080p")
-        result["quality"] = g.get("screen_size") or g.get("other_resolution")
+        result["quality"] = g.get("screen_size") or g.get("other_resolution") or "Unknown"
         result["episode_title"] = g.get("episode_title")
         result["source"] = g.get("source")
         result["codec"] = g.get("video_codec")
@@ -639,7 +639,7 @@ def _parse_filename(filename: str) -> dict | None:
     if result.get("year") is None:
         result["year"] = p.get("year")
     if not result.get("quality"):
-        result["quality"] = p.get("resolution")
+        result["quality"] = p.get("resolution") or "Unknown"
     if result.get("episode_title") is None:
         result["episode_title"] = p.get("episodeTitle")
 
