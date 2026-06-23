@@ -392,6 +392,9 @@ class ScanManager:
         if message.document and not is_video:
             mime = getattr(message.document, "mime_type", "") or ""
             is_video_doc = mime.startswith("video/")
+            if not is_video_doc:
+                fname = (message.caption or message.document.file_name or "").lower()
+                is_video_doc = fname.endswith(('.mkv', '.mp4'))
 
         if not (is_video or is_video_doc):
             s["counters"]["skipped_nonvid"] += 1

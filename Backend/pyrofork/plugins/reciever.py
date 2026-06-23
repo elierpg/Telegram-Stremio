@@ -26,8 +26,10 @@ def _is_supported_media(message: Message) -> bool:
         mime_type = message.document.mime_type or ""
         if mime_type.startswith("video/"):
             return True
-        candidate = message.caption or message.document.file_name or ""
-        if parse_split_info(candidate):
+        fname = (message.caption or message.document.file_name or "").lower()
+        if fname.endswith(('.mkv', '.mp4')):
+            return True
+        if parse_split_info(fname):
             return True
     return False
 
