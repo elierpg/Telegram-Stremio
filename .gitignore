@@ -9,5 +9,6 @@ log.txt
 *.session-wal
 /.vscode/
 test.py
+generate_session.py
 config.env
 *.pyc
