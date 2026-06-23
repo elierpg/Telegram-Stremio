@@ -401,7 +401,6 @@ class ScanManager:
             return
 
         file = message.video or message.document
-        title = message.caption or file.file_name
         msg_id = message.id
         size = get_readable_file_size(file.file_size)
         channel_int = int(str(chat_id).replace("-100", ""))
@@ -413,8 +412,14 @@ class ScanManager:
         except Exception as e:
             LOGGER.warning(f"[ScanManager] Dup-check error msg {msg_id}: {e}")
 
+        file_name = file.file_name or ""
+        caption_text = message.caption or ""
+
         try:
-            metadata_info = await metadata(clean_filename(title), channel_int, msg_id)
+            metadata_info = await metadata(
+                clean_filename(file_name), channel_int, msg_id,
+                caption=caption_text if caption_text else None
+            )
         except Exception as e:
             LOGGER.warning(f"[ScanManager] Metadata exception for msg {msg_id}: {e}")
             metadata_info = None
@@ -423,7 +428,7 @@ class ScanManager:
             s["counters"]["skipped_meta"] += 1
             return
 
-        title_clean = remove_urls(title)
+        title_clean = remove_urls(caption_text or file_name)
         if not title_clean.endswith(('.mkv', '.mp4')):
             title_clean += '.mkv'
 

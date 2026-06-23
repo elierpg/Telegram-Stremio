@@ -54,25 +54,29 @@ async def file_receive_handler(client: Client, message: Message):
         try:
             if _is_supported_media(message):
                 file = message.video or message.document
-                title = message.caption or file.file_name
+                file_name = file.file_name or ""
+                caption_text = message.caption or ""
                 msg_id = message.id
                 raw_size = file.file_size
                 size = get_readable_file_size(file.file_size)
                 channel = str(message.chat.id).replace("-100", "")
 
-                metadata_info = await metadata(clean_filename(title), int(channel), msg_id)
+                metadata_info = await metadata(
+                    clean_filename(file_name), int(channel), msg_id,
+                    caption=caption_text if caption_text else None
+                )
                 if metadata_info is None:
-                    LOGGER.warning(f"Metadata failed for file: {title} (ID: {msg_id})")
+                    LOGGER.warning(f"Metadata failed for msg {msg_id}: file={file_name}")
                     return
 
-                title = remove_urls(title)
+                title = remove_urls(caption_text or file_name)
                 if metadata_info.get('group_key'):
                     title = strip_part_suffix(title)
                 if not title.endswith(('.mkv', '.mp4')):
                     title += '.mkv'
 
                 if Backend.USE_DEFAULT_ID:
-                    new_caption = (message.caption + "\n\n" + Backend.USE_DEFAULT_ID) if message.caption else Backend.USE_DEFAULT_ID
+                    new_caption = (caption_text + "\n\n" + Backend.USE_DEFAULT_ID) if caption_text else Backend.USE_DEFAULT_ID
                     create_task(edit_message(
                         chat_id=message.chat.id,
                         msg_id=message.id,
@@ -100,7 +104,8 @@ async def file_edited_handler(client: Client, message: Message):
         try:
             if _is_supported_media(message):
                 file = message.video or message.document
-                title = message.caption or file.file_name
+                file_name = file.file_name or ""
+                caption_text = message.caption or ""
                 msg_id = message.id
                 raw_size = file.file_size
                 size = get_readable_file_size(file.file_size)
@@ -113,12 +118,16 @@ async def file_edited_handler(client: Client, message: Message):
                     
                     await db.remove_media_part(int(channel), msg_id)
 
-                    metadata_info = await metadata(clean_filename(title), int(channel), msg_id, override_id=override_id)
+                    metadata_info = await metadata(
+                        clean_filename(file_name), int(channel), msg_id,
+                        override_id=override_id,
+                        caption=caption_text if caption_text else None
+                    )
                     if metadata_info is None:
-                        LOGGER.warning(f"Metadata failed for edited file: {title} (ID: {msg_id})")
+                        LOGGER.warning(f"Metadata failed for edited msg {msg_id}: file={file_name}")
                         return
 
-                    title = remove_urls(title)
+                    title = remove_urls(caption_text or file_name)
                     if metadata_info.get('group_key'):
                         title = strip_part_suffix(title)
                     if not title.endswith(('.mkv', '.mp4')):

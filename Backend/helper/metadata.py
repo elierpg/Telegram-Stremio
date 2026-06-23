@@ -510,16 +510,22 @@ def _parse_filename(filename: str) -> dict | None:
 # Main entry-point
 # =============================================================================
 
-async def metadata(filename: str, channel: int, msg_id, override_id: str = None) -> dict | None:
+async def metadata(filename: str, channel: int, msg_id, override_id: str = None, caption: str = None) -> dict | None:
     # Skip split files that are not supported
     multipart_pattern = compile(r'(?:part|cd|disc|disk)[s._-]*\d+(?=\.\w+$)', IGNORECASE)
     if multipart_pattern.search(filename):
         LOGGER.info(f"Skipping {filename}: seems to be a split video file that is not supposed to combine in stremio use .mkv.001, .mkv.002 split files")
         return None
 
+    # Try parsing the filename first; fall back to caption if it fails
     parsed = _parse_filename(filename)
+    if parsed is None and caption:
+        LOGGER.info(f"No title from filename, trying caption: {caption}")
+        parsed = _parse_filename(caption)
+
     if parsed is None:
-        LOGGER.info(f"No title parsed from: {filename}")
+        source = caption or filename
+        LOGGER.info(f"No title parsed from: {source}")
         return None
 
     if "excess" in parsed and any("combined" in item.lower() for item in parsed["excess"]):
@@ -562,9 +568,10 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
         except Exception:
             pass
 
+    source_for_id = caption or filename
     if not default_id:
         try:
-            default_id = extract_default_id(filename)
+            default_id = extract_default_id(source_for_id)
         except Exception:
             pass
 
