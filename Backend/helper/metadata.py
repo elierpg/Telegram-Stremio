@@ -1,10 +1,12 @@
 import asyncio
 import traceback
 import PTN
+import guessit
 import re
 from re import compile, IGNORECASE
 from difflib import SequenceMatcher
 from typing import Optional, List
+import unicodedata
 
 from Backend.helper.imdb import get_detail, get_season, search_title, search_title_multi
 from themoviedb import aioTMDb
@@ -120,13 +122,22 @@ def extract_default_id(text: str) -> str | None:
 
 # ----------------- Fuzzy-matching helpers -----------------
 
+def _normalize_accents(text: str) -> str:
+    """Remove diacritics/accents from text (Aída → Aida)."""
+    if not text:
+        return ""
+    nfkd = unicodedata.normalize('NFKD', text)
+    return ''.join(c for c in nfkd if not unicodedata.category(c).startswith('M'))
+
+
 def _normalize_title(title: str) -> str:
-    """Lower-case, strip leading articles, collapse punctuation to spaces."""
+    """Lower-case, strip accents & leading articles, collapse punctuation."""
     if not title:
         return ""
     t = title.lower().strip()
+    t = _normalize_accents(t)
     # Remove leading articles
-    t = re.sub(r'^\b(the|a|an)\b\s+', '', t)
+    t = re.sub(r'^\b(the|a|an|el|la|los|las|un|una)\b\s+', '', t)
     # Replace punctuation with spaces
     t = re.sub(r'[^\w\s]', ' ', t)
     t = re.sub(r'\s+', ' ', t).strip()
@@ -181,17 +192,18 @@ def _build_query_variants(title: str, year: Optional[int] = None) -> List[str]:
     query produces a poor match.
 
     Order: most-specific → least-specific.
+    Includes accent-normalized variants for Spanish/international titles.
     """
     variants: List[str] = []
 
-    # 1. Original title (as parsed by PTN)
+    # 1. Original title (as parsed)
     variants.append(title)
 
-    # 2. Title with year appended (often improves Cinemeta recall for movies)
+    # 2. Title with year appended
     if year:
         variants.append(f"{title} {year}")
 
-    # 3. Punctuation-stripped version (handles colons, hyphens, apostrophes)
+    # 3. Punctuation-stripped version
     stripped = re.sub(r'[^\w\s]', ' ', title)
     stripped = re.sub(r'\s+', ' ', stripped).strip()
     if stripped and stripped.lower() != title.lower():
@@ -199,10 +211,24 @@ def _build_query_variants(title: str, year: Optional[int] = None) -> List[str]:
         if year:
             variants.append(f"{stripped} {year}")
 
-    # 4. Without leading article (The / A / An)
-    no_article = re.sub(r'^\b(the|a|an)\b\s+', '', title, flags=IGNORECASE).strip()
+    # 4. Without leading article (The / A / An / El / La / Los / Las)
+    no_article = re.sub(r'^\b(the|a|an|el|la|los|las|un|una)\b\s+', '', title, flags=IGNORECASE).strip()
     if no_article and no_article.lower() != title.lower():
         variants.append(no_article)
+
+    # 5. Accent-normalized version (Aída → Aida)
+    no_accents = _normalize_accents(title)
+    if no_accents and no_accents != title:
+        variants.append(no_accents)
+        if year:
+            variants.append(f"{no_accents} {year}")
+
+    # 6. Punctuation-stripped + accent-normalized
+    stripped_no_accents = _normalize_accents(stripped)
+    if stripped_no_accents and stripped_no_accents != no_accents and stripped_no_accents != title:
+        variants.append(stripped_no_accents)
+        if year:
+            variants.append(f"{stripped_no_accents} {year}")
 
     # Deduplicate, preserve order, drop empty strings
     seen: set = set()
@@ -419,25 +445,83 @@ async def _tmdb_episode_details(tv_id, season, episode):
 
 
 # =============================================================================
+# Improved filename parser — guessit first, PTN fallback
+# =============================================================================
+
+def _parse_filename(filename: str) -> dict | None:
+    """
+    Parse a media filename using guessit (primary) with PTN as fallback.
+
+    Returns a dict with these keys (matching the downstream metadata() contract):
+      title, season, episode, year, quality, episode_title, source, codec, audio
+    Returns None when neither parser can extract a title.
+    """
+    result: dict = {}
+
+    # ── 1. Try guessit ──────────────────────────────────────────────────────
+    g = None
+    try:
+        g = guessit.guessit(filename)
+    except Exception:
+        pass
+
+    if g:
+        result["title"] = g.get("title")
+        result["season"] = g.get("season")
+        result["episode"] = g.get("episode")
+        result["year"] = g.get("year")
+        # guessit calls resolution "screen_size" (e.g. "720p", "1080p")
+        result["quality"] = g.get("screen_size") or g.get("other_resolution")
+        result["episode_title"] = g.get("episode_title")
+        result["source"] = g.get("source")
+        result["codec"] = g.get("video_codec")
+        result["audio"] = g.get("audio_codec")
+
+        # If we have at least a title, we're good
+        if result["title"]:
+            return result
+
+    # ── 2. Fallback: PTN ────────────────────────────────────────────────────
+    try:
+        p = PTN.parse(filename)
+    except Exception:
+        return result if result.get("title") else None
+
+    if not result.get("title"):
+        result["title"] = p.get("title")
+    if result.get("season") is None:
+        result["season"] = p.get("season")
+    if result.get("episode") is None:
+        result["episode"] = p.get("episode")
+    if result.get("year") is None:
+        result["year"] = p.get("year")
+    if not result.get("quality"):
+        result["quality"] = p.get("resolution")
+    if result.get("episode_title") is None:
+        result["episode_title"] = p.get("episodeTitle")
+
+    if not result.get("title"):
+        return None
+
+    return result
+
+
+# =============================================================================
 # Main entry-point
 # =============================================================================
 
 async def metadata(filename: str, channel: int, msg_id, override_id: str = None) -> dict | None:
-    try:
-        parsed = PTN.parse(filename)
-    except Exception as e:
-        LOGGER.error(f"PTN parsing failed for {filename}: {e}\n{traceback.format_exc()}")
-        return None
-
-
-    # Skip split files that are not supported 
+    # Skip split files that are not supported
     multipart_pattern = compile(r'(?:part|cd|disc|disk)[s._-]*\d+(?=\.\w+$)', IGNORECASE)
     if multipart_pattern.search(filename):
         LOGGER.info(f"Skipping {filename}: seems to be a split video file that is not supposed to combine in stremio use .mkv.001, .mkv.002 split files")
         return None
 
-    
-    # Skip combined/invalid files
+    parsed = _parse_filename(filename)
+    if parsed is None:
+        LOGGER.info(f"No title parsed from: {filename}")
+        return None
+
     if "excess" in parsed and any("combined" in item.lower() for item in parsed["excess"]):
         LOGGER.info(f"Skipping {filename}: contains 'combined'")
         return None
@@ -449,12 +533,12 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
     season = parsed.get("season")
     episode = parsed.get("episode")
     year = parsed.get("year")
-    quality = parsed.get("resolution")
+    quality = parsed.get("quality")
 
     if isinstance(season, list) or isinstance(episode, list):
         LOGGER.warning(f"Invalid season/episode format for {filename}: {parsed}")
         return None
-    if season and not episode:
+    if season is not None and episode is None:
         LOGGER.warning(f"Missing episode in {filename}: {parsed}")
         return None
     if not quality:

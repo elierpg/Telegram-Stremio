@@ -1,6 +1,7 @@
 aiofiles
 aiohttp
 fastapi
+guessit
 httpx
 motor
 parse-torrent-title
