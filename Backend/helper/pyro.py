@@ -203,6 +203,10 @@ commands = [
     BotCommand("set", "🎬 Manually add IMDb metadata"),
     BotCommand("stats", "📊 DB and system stats"),
     BotCommand("log", "📄 Send the log file"),
+    BotCommand("scan", "🔍 Scan AUTH channels for new media"),
+    BotCommand("rescan", "🔄 Purge and re-index all channels"),
+    BotCommand("scanstatus", "📈 Show scan progress"),
+    BotCommand("cancelscan", "⏹ Stop the current scan"),
     BotCommand("restart", "♻️ Restart the bot"),
 ]
 
