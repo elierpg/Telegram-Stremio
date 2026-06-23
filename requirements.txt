@@ -3,6 +3,7 @@ aiohttp
 fastapi
 guessit
 httpx
+jinja2>=3.1.0,<3.1.6
 motor
 parse-torrent-title
 pyrofork
