@@ -17,3 +17,4 @@ uvicorn
 uv
 uvloop
 httptools
+groq
