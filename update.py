@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 import pytz
 import shutil
+import sys
 
 IST = pytz.timezone("Asia/Kolkata")
 
@@ -31,6 +32,10 @@ basicConfig(handlers=[file_handler, stream_handler], level=INFO)
 # ── Load config.env as the base (for DATABASE URI, etc.) ─────────────────────
 load_dotenv("config.env")
 
+# ── Skip git-based update on Hugging Face Spaces ────────────────────────────
+if environ.get("HF_SPACE"):
+    log_info("HF_SPACE detected — skipping git-based update.")
+    sys.exit(0)
 
 def _fetch_upstream_from_db() -> tuple[str | None, str]:
     try:
