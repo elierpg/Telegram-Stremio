@@ -16,6 +16,14 @@ from Backend.logger import LOGGER
 from Backend.helper.encrypt import encode_string
 from Backend.helper.split_files import parse_split_info
 
+# ----------------- Cinemagoer (IMDbPY) -----------------
+
+try:
+    from imdb import Cinemagoer
+    _imdbpy = Cinemagoer()
+except Exception:
+    _imdbpy = None
+
 # ----------------- Configuration -----------------
 
 DELAY = 0
@@ -393,6 +401,141 @@ def _pick_best_tmdb_result(results, query_title: str, query_year: Optional[int],
     return None
 
 
+# =============================================================================
+# IMDbPY (Cinemagoer) fallback search + Cinemeta detail helpers
+# =============================================================================
+
+async def _fetch_tv_from_cinemeta(
+    imdb_id: str, title: str, season: int, episode: int,
+    encoded_string: str | None, quality: str | None,
+) -> dict | None:
+    """Fetch TV series + episode details from Cinemeta by IMDb ID."""
+    try:
+        async with API_SEMAPHORE:
+            tv = await get_detail(imdb_id=imdb_id, media_type="tvSeries")
+        if not tv:
+            return None
+        async with API_SEMAPHORE:
+            ep = await get_season(imdb_id=imdb_id, season_id=season, episode_id=episode)
+        images = format_imdb_images(imdb_id)
+        return {
+            "tmdb_id": tv.get("moviedb_id") or imdb_id.replace("tt", ""),
+            "imdb_id": imdb_id,
+            "title": tv.get("title", title),
+            "year": tv.get("releaseDetailed", {}).get("year", 0),
+            "rate": tv.get("rating", {}).get("star", 0),
+            "description": tv.get("plot", ""),
+            "poster": images["poster"],
+            "backdrop": images["backdrop"],
+            "logo": images["logo"],
+            "cast": tv.get("cast", []),
+            "runtime": str(tv.get("runtime") or ""),
+            "genres": tv.get("genre", []),
+            "media_type": "tv",
+            "season_number": season,
+            "episode_number": episode,
+            "episode_title": ep.get("title", f"S{season:02d}E{episode:02d}") if ep else f"S{season:02d}E{episode:02d}",
+            "episode_backdrop": ep.get("image", "") if ep else "",
+            "episode_overview": ep.get("plot", "") if ep else "",
+            "episode_released": str(ep.get("released", "")) if ep else "",
+            "quality": quality,
+            "encoded_string": encoded_string,
+        }
+    except Exception as e:
+        LOGGER.warning(f"Cinemeta TV detail fetch failed [{imdb_id}]: {e}")
+        return None
+
+
+async def _fetch_movie_from_cinemeta(
+    imdb_id: str, title: str,
+    encoded_string: str | None, quality: str | None,
+) -> dict | None:
+    """Fetch movie details from Cinemeta by IMDb ID."""
+    try:
+        async with API_SEMAPHORE:
+            movie = await get_detail(imdb_id=imdb_id, media_type="movie")
+        if not movie:
+            return None
+        images = format_imdb_images(imdb_id)
+        return {
+            "tmdb_id": movie.get("moviedb_id") or imdb_id.replace("tt", ""),
+            "imdb_id": imdb_id,
+            "title": movie.get("title", title),
+            "year": movie.get("releaseDetailed", {}).get("year", 0),
+            "rate": movie.get("rating", {}).get("star", 0),
+            "description": movie.get("plot", ""),
+            "poster": images["poster"],
+            "backdrop": images["backdrop"],
+            "logo": images["logo"],
+            "cast": movie.get("cast", []),
+            "runtime": str(movie.get("runtime") or ""),
+            "genres": movie.get("genre", []),
+            "media_type": "movie",
+            "quality": quality,
+            "encoded_string": encoded_string,
+        }
+    except Exception as e:
+        LOGGER.warning(f"Cinemeta movie detail fetch failed [{imdb_id}]: {e}")
+        return None
+
+
+async def safe_imdbpy_search(title: str, type_: str, year: Optional[int] = None) -> str | None:
+    """
+    Search IMDb directly via Cinemagoer (IMDbPY) when both Cinemeta and TMDb
+    return no confident match.  Returns an IMDb ID (tt…) or None.
+    Runs synchronously in a thread to avoid blocking the event loop.
+    """
+    if _imdbpy is None:
+        return None
+
+    target_kind = "movie" if type_ == "movie" else "tv series"
+    loop = asyncio.get_running_loop()
+
+    try:
+        results = await loop.run_in_executor(None, lambda: _imdbpy.search_movie(title))
+    except Exception as e:
+        LOGGER.warning(f"IMDbPY search_movie failed for '{title}': {e}")
+        return None
+
+    if not results:
+        return None
+
+    best_id: str | None = None
+    best_score: float = 0.0
+    best_result_title: str = ""
+
+    for r in results:
+        r_kind = getattr(r, "kind", None) or ""
+        # Only accept matching media type
+        if r_kind.lower() != target_kind and r_kind.lower() != "tv mini series":
+            continue
+
+        r_title = getattr(r, "title", "") or ""
+        r_year = getattr(r, "year", 0) or 0
+        score = _score_candidate(title, year, r_title, r_year)
+
+        if score > best_score:
+            best_score = score
+            best_id = f"tt{r.movieID}"
+            best_result_title = r_title
+
+        if best_score >= 0.92:
+            break
+
+    if best_score >= _TMDB_THRESHOLD and best_id:
+        LOGGER.info(
+            f"IMDbPY fallback: '{title}' → '{best_result_title}' [{best_id}] "
+            f"(score={best_score:.2f})"
+        )
+        return best_id
+
+    LOGGER.info(
+        f"IMDbPY no confident match for '{title}' (year={year}, type={type_})"
+        + (f" – best: '{best_result_title}' [{best_id}] score={best_score:.2f}" if best_id else "")
+    )
+    return None
+
+
 async def _tmdb_movie_details(movie_id):
     if movie_id in TMDB_DETAILS_CACHE:
         return TMDB_DETAILS_CACHE[movie_id]
@@ -690,6 +833,15 @@ async def fetch_tv_metadata(title, season, episode, encoded_string, year=None, q
                 tmdb_search = await safe_tmdb_search(title, "tv", None)
 
             if not tmdb_search:
+                # ── IMDbPY fallback before giving up ─────────────────────
+                imdbpy_id = await safe_imdbpy_search(title, "tv", year)
+                if imdbpy_id:
+                    result = await _fetch_tv_from_cinemeta(
+                        imdbpy_id, title, season, episode,
+                        encoded_string, quality,
+                    )
+                    if result is not None:
+                        return result
                 LOGGER.info(
                     f"No TMDb TV result for '{title}' S{season:02d}E{episode:02d} "
                     f"(year={year}) – metadata unavailable"
@@ -854,6 +1006,15 @@ async def fetch_movie_metadata(title, encoded_string, year=None, quality=None, d
                 tmdb_result = await safe_tmdb_search(title, "movie", None)
 
             if not tmdb_result:
+                # ── IMDbPY fallback before giving up ─────────────────────
+                imdbpy_id = await safe_imdbpy_search(title, "movie", year)
+                if imdbpy_id:
+                    result = await _fetch_movie_from_cinemeta(
+                        imdbpy_id, title,
+                        encoded_string, quality,
+                    )
+                    if result is not None:
+                        return result
                 LOGGER.info(
                     f"No TMDb movie found for '{title}' (year={year}) "
                     f"– metadata unavailable"

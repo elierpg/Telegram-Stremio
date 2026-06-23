@@ -3,6 +3,7 @@ aiohttp
 fastapi
 guessit
 httpx
+cinemagoer
 jinja2>=3.1.0
 starlette>=0.45.0,<1.0.0
 motor
