@@ -15,7 +15,6 @@ import Backend
 from Backend.logger import LOGGER
 from Backend.helper.encrypt import encode_string
 from Backend.helper.split_files import parse_split_info
-from Backend.helper.llm_identify import llm_identify
 
 # ----------------- Cinemagoer (IMDbPY) -----------------
 
@@ -669,34 +668,8 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None,
 
     if parsed is None:
         source = caption or filename
-        LOGGER.info(f"No title from filename/caption, trying LLM: {source}")
-        llm_result = None
-        try:
-            llm_result = await llm_identify(source)
-        except Exception as e:
-            LOGGER.warning(f"LLM identify failed: {e}")
-        if llm_result and llm_result.get("confidence", 0) >= 0.6:
-            parsed = {
-                "title": llm_result.get("title"),
-                "season": llm_result.get("season"),
-                "episode": llm_result.get("episode"),
-                "year": llm_result.get("year"),
-                "quality": "Unknown",
-                "episode_title": None,
-                "source": None,
-                "codec": None,
-                "audio": None,
-            }
-            LOGGER.info(
-                f"LLM identified: '{parsed['title']}' "
-                f"S{parsed['season']}E{parsed['episode']} "
-                f"(year={parsed['year']}, type={llm_result.get('type')}, "
-                f"conf={llm_result.get('confidence')})"
-            )
-        else:
-            source = caption or filename
-            LOGGER.info(f"No title parsed from: {source}")
-            return None
+        LOGGER.info(f"No title parsed from: {source}")
+        return None
 
     if "excess" in parsed and any("combined" in item.lower() for item in parsed["excess"]):
         LOGGER.info(f"Skipping {filename}: contains 'combined'")

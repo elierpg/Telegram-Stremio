@@ -18,9 +18,6 @@ class Telegram:
     PORT     = int(getenv("PORT", "8000"))
     OWNER_ID = int(getenv("OWNER_ID", "0"))
 
-    # ── LLM (Groq) ────────────────────────────────────────────────────────────
-    GROQ_API_KEY = getenv("GROQ_API_KEY", "")
-
     # ── Legacy migration fallbacks ────────────────────────────────────────────
     # These are READ ONCE by SettingsManager._seed_from_env() on first startup
     # and then stored in the database.  Do NOT reference them elsewhere in the
