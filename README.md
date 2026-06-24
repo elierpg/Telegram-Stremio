@@ -22,7 +22,7 @@ Servidor de medios que conecta Telegram con Stremio. Enviás archivos a un canal
 ## Características
 
 - **Catálogos automáticos** — películas y series se organizan solos con metadata real.
-- **Panel web** — dashboard, escaneo, configuración, gestión de usuarios y suscripciones.
+- **Panel web** — dashboard, escaneo, configuración, gestión de usuarios y suscripciones, revisión de archivos fallidos con selección masiva y paginación.
 - **Metadata con TMDb/IMDb** — portadas, sinopsis, año, reparto. Si falla, podés corregirlo manualmente.
 - **Multi-token** — varios bots de Telegram rotan para evitar rate limits.
 - **Archivos divididos** — reproducí archivos multiparte como un solo stream.
