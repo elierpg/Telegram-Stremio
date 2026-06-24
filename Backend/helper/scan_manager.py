@@ -10,7 +10,9 @@ from pyrogram.errors import FloodWait, ChannelPrivate, ChatAdminRequired
 from Backend.logger import LOGGER
 from Backend.helper.encrypt import encode_string, decode_string
 from Backend.helper.metadata import metadata
-from Backend.helper.pyro import clean_filename, get_readable_file_size, remove_urls
+from Backend.helper.pyro import clean_filename, get_readable_file_size, remove_urls, format_caption
+from Backend.helper.task_manager import edit_message
+from Backend.helper.settings_manager import SettingsManager
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -449,6 +451,13 @@ class ScanManager:
             )
             if updated_id:
                 s["counters"]["indexed"] += 1
+                if SettingsManager.current().rename_captions:
+                    new_cap = format_caption(metadata_info)
+                    asyncio.ensure_future(edit_message(
+                        chat_id=chat_id,
+                        msg_id=msg_id,
+                        new_caption=new_cap,
+                    ))
             else:
                 s["counters"]["skipped_meta"] += 1
                 self._track_skipped("meta", message, file_name, file.file_size, caption_text)
@@ -544,6 +553,13 @@ class ScanManager:
             )
             if not updated_id:
                 return {"ok": False, "message": "DB insert returned no ID (duplicate?)."}
+            if SettingsManager.current().rename_captions:
+                new_cap = format_caption(meta)
+                asyncio.ensure_future(edit_message(
+                    chat_id=int(f"-100{channel}"),
+                    msg_id=msg_id,
+                    new_caption=new_cap,
+                ))
         except Exception as e:
             return {"ok": False, "message": f"DB insert error: {e}"}
 

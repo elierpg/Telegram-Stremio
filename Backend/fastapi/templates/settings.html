@@ -135,6 +135,17 @@
                     </span>
                 </span>
             </label>
+            <label class="toggle-wrap">
+                <input type="checkbox" class="toggle-input" id="rename_captions"
+                    {% if settings.rename_captions %}checked{% endif %}>
+                <span class="toggle-track"></span>
+                <span class="toggle-label">
+                    <strong>Auto-rename captions</strong>
+                    <span style="color:var(--text-sec);font-size:0.8rem;display:block">
+                        Edit Telegram message captions with the identified metadata name
+                    </span>
+                </span>
+            </label>
         </div>
     </div>
 
@@ -594,6 +605,7 @@ async function saveSettings() {
     const payload = {
         replace_mode:                  document.getElementById('replace_mode').checked,
         hide_catalog:                  document.getElementById('hide_catalog').checked,
+        rename_captions:               document.getElementById('rename_captions').checked,
         admin_username:                document.getElementById('admin_username').value.trim(),
         admin_password:                document.getElementById('admin_password').value,  // blank = keep
         tmdb_api:                      document.getElementById('tmdb_api').value.trim(),
@@ -679,6 +691,7 @@ function renderSettings(s) {
     // Toggles
     document.getElementById('replace_mode').checked = !!s.replace_mode;
     document.getElementById('hide_catalog').checked = !!s.hide_catalog;
+    document.getElementById('rename_captions').checked = !!s.rename_captions;
     document.getElementById('subscription').checked = !!s.subscription;
     document.getElementById('show_proxy_and_non_proxy_both').checked = !!s.show_proxy_and_non_proxy_both;
     document.getElementById('global_search').checked = !!s.global_search;
