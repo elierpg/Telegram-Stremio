@@ -262,12 +262,14 @@ function renderGroups(groups, entries) {
 
   for (const g of info.pageGroups) {
     const base = esc(g.base !== '_ungrouped' ? g.base : '(miscellaneous)');
+    const baseAttr = g.base.replace(/'/g, "\\'");
     let trs = '', cards = '';
 
     for (const e of g.entries) {
       const fn = e.file_name || '(no name)';
       const ss = e.file_size ? fmtSize(e.file_size) : '—';
       const fe = esc(fn);
+      const feAttr = fe.replace(/'/g, "\\'");
       const ch = isSel(e.channel, e.msg_id) ? 'checked' : '';
 
       trs += `<tr>
@@ -276,7 +278,7 @@ function renderGroups(groups, entries) {
         <td class="chnl"><code>${esc(String(e.channel))}</code></td>
         <td class="size">${ss}</td>
         <td class="actions">
-          <button class="btn btn-primary btn-xs" onclick="openRetryFromGroup('${g.base}',{ch:${e.channel},id:${e.msg_id}},'${fe.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i></button>
+          <button class="btn btn-primary btn-xs" onclick="openRetryFromGroup('${baseAttr}',{ch:${e.channel},id:${e.msg_id}},'${feAttr}')"><i class="fa-solid fa-play"></i></button>
           <button class="btn btn-danger btn-xs" onclick="dismiss(${e.channel},${e.msg_id})"><i class="fa-solid fa-trash"></i></button>
         </td>
       </tr>`;
@@ -294,7 +296,7 @@ function renderGroups(groups, entries) {
           </div>
         </div>
         <div class="skip-card-actions">
-          <button class="btn btn-primary btn-xs" onclick="openRetryFromGroup('${g.base}',{ch:${e.channel},id:${e.msg_id}},'${fe.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i> Index</button>
+          <button class="btn btn-primary btn-xs" onclick="openRetryFromGroup('${baseAttr}',{ch:${e.channel},id:${e.msg_id}},'${feAttr}')"><i class="fa-solid fa-play"></i> Index</button>
           <button class="btn btn-danger btn-xs" onclick="dismiss(${e.channel},${e.msg_id})"><i class="fa-solid fa-trash"></i> Dismiss</button>
         </div>
       </div>`;
@@ -311,7 +313,7 @@ function renderGroups(groups, entries) {
         </div>
         <div class="gpreview" title="${esc(preview)}">${preview}</div>
       </div>
-      <label class="group-chk-all"><input type="checkbox" onchange="togGroupSel(this,'${g.base}')"> Select all in group</label>
+      <label class="group-chk-all"><input type="checkbox" onchange="togGroupSel(this,'${baseAttr}')"> Select all in group</label>
       <div class="group-body">
         <table class="skip-table"><thead><tr>
           <th class="chk"></th>
