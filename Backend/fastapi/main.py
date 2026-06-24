@@ -433,16 +433,26 @@ async def admin_review(request: Request, _: bool = Depends(require_auth)):
     return await review_page(request, _)
 
 @app.get("/api/admin/tools/scan/skipped")
-async def tools_skipped_files(reason: str = Query("meta"), _: bool = Depends(require_auth)):
-    return await get_skipped_files_api(reason)
+async def tools_skipped_files(
+    reason: str = Query("meta"),
+    grouped: bool = Query(False),
+    _: bool = Depends(require_auth),
+):
+    return await get_skipped_files_api(reason, grouped)
 
 @app.post("/api/admin/tools/scan/retry")
 async def tools_retry_skipped(payload: dict, _: bool = Depends(require_auth)):
     return await retry_skipped_api(payload)
 
 @app.delete("/api/admin/tools/scan/skipped/{reason}/{channel}/{msg_id}")
-async def tools_dismiss_skipped(reason: str, channel: int, msg_id: int, _: bool = Depends(require_auth)):
-    return await dismiss_skipped_api(channel, msg_id, reason)
+async def tools_dismiss_skipped(
+    reason: str,
+    channel: int,
+    msg_id: int,
+    delete_telegram: bool = Query(True),
+    _: bool = Depends(require_auth),
+):
+    return await dismiss_skipped_api(channel, msg_id, reason, delete_telegram)
 
 @app.exception_handler(401)
 async def auth_exception_handler(request: Request, exc):

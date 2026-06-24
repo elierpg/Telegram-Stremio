@@ -1185,11 +1185,14 @@ async def purge_dead_links_api(payload: dict | None = None) -> dict:
 
 # ── Skipped-files review ──────────────────────────────────────────────────
 
-async def get_skipped_files_api(reason: str = "meta") -> dict:
+async def get_skipped_files_api(reason: str = "meta", grouped: bool = Query(False)) -> dict:
     from Backend.helper.scan_manager import scan_manager
     if reason not in ("meta", "nonvid"):
         raise HTTPException(status_code=400, detail="reason must be 'meta' or 'nonvid'.")
     entries = scan_manager.get_skipped_files(reason)
+    if grouped:
+        groups = scan_manager.get_grouped_skipped(reason)
+        return {"status": "success", "data": entries, "count": len(entries), "groups": groups}
     return {"status": "success", "data": entries, "count": len(entries)}
 
 
@@ -1209,9 +1212,20 @@ async def retry_skipped_api(payload: dict) -> dict:
     return {"status": "success", **result}
 
 
-async def dismiss_skipped_api(channel: int, msg_id: int, reason: str = "meta") -> dict:
+async def dismiss_skipped_api(
+    channel: int, msg_id: int, reason: str = "meta",
+    delete_telegram: bool = Query(True),
+) -> dict:
     from Backend.helper.scan_manager import scan_manager
     if reason not in ("meta", "nonvid"):
         raise HTTPException(status_code=400, detail="reason must be 'meta' or 'nonvid'.")
+    telegram_deleted = False
+    if delete_telegram:
+        client = _scan_client()
+        if client is not None:
+            telegram_deleted = await scan_manager.delete_telegram_message(client, channel, msg_id)
     removed = scan_manager.remove_skipped(reason, channel, msg_id)
-    return {"status": "success", "removed": removed}
+    return {
+        "status": "success", "removed": removed,
+        "telegram_deleted": telegram_deleted,
+    }

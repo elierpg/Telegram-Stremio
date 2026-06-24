@@ -21,19 +21,36 @@ def _format_status() -> str:
     lines = [f"📡 Scan {icon} {label}", ""]
 
     if s["current_channel_name"]:
+        current_id = s.get("current_id", 0)
         lines.append(f"📺 Channel: <code>{s['current_channel_name']}</code>")
+        if current_id:
+            lines.append(f"🔢 Scanning up to message ID: <code>{current_id:,}</code>")
+
+    total = c["total_found"]
+    indexed = c["indexed"]
+    skipped_meta = c["skipped_meta"]
+    skipped_nonvid = c["skipped_nonvid"]
+    skipped_dup = c["skipped_dup"]
+    errors = c["errors"]
+    accounted = indexed + skipped_meta + skipped_nonvid + skipped_dup + errors
 
     lines.append(f"⏱ Duration: <code>{s['elapsed']}</code>")
-    lines.append(f"📨 Total messages seen: <code>{c['total_found']}</code>")
-    lines.append(f"✅ Newly indexed: <code>{c['indexed']}</code>")
-    lines.append(f"⏭ Skipped (already in DB): <code>{c['processed']}</code>")
-    lines.append(f"⚠️ Skipped (metadata fail): <code>{c['skipped_meta']}</code>")
-    lines.append(f"📎 Skipped (non-video): <code>{c['skipped_nonvid']}</code>")
-    lines.append(f"🧹 Duplicates removed: <code>{c['skipped_dup']}</code>")
-    lines.append(f"❌ Errors: <code>{c['errors']}</code>")
+    lines.append("")
+    lines.append(f"📨 Total messages seen: <code>{total}</code>")
+    lines.append(f"✅ Indexed: <code>{indexed}</code>")
+    lines.append(f"⏭ Already in DB: <code>{skipped_dup}</code>")
+    lines.append(f"⚠️ No metadata: <code>{skipped_meta}</code>")
+    lines.append(f"📎 Non-video: <code>{skipped_nonvid}</code>")
+    lines.append(f"❌ Errors: <code>{errors}</code>")
+
+    if s["is_running"]:
+        progress = (accounted / total * 100) if total > 0 else 0
+        remaining = total - accounted
+        if remaining > 0:
+            lines.append(f"\n⏳ Processing: <code>{progress:.1f}%</code> ({remaining} remaining)")
 
     if s["pending"]:
-        lines.append(f"\n⏳ Pending: <code>{len(s['pending'])}</code>")
+        lines.append(f"\n⏳ Channels left: <code>{len(s['pending'])}</code>")
 
     if s["error"]:
         lines.append(f"\n❌ <code>{s['error']}</code>")

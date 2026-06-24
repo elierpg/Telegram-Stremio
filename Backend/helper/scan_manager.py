@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -551,6 +552,48 @@ class ScanManager:
         self.remove_skipped("nonvid", channel, msg_id)
         return {"ok": True, "message": f"Indexed successfully.",
                 "title": title_clean, "media_type": meta.get("media_type")}
+
+    # ── Group similar entries ────────────────────────────────────────────────
+
+    @staticmethod
+    def _strip_se_ep(name: str) -> str:
+        """Strip season/episode markers and noise from a filename."""
+        n = name.rsplit(".", 1)[0]  # extension
+        n = re.sub(r"\b(720p|1080p|2160p|480p|360p|4k|uhd|x264|x265|h264|h265|hevc|bluray|web.?dl|web.?rip|dvdrip|brrip|hdrip|hdtv|aac|ac3|ddp|dd5|dts|mp3|pahe|yts|rarbg|ettv|eztv|cinecalidad|hdfull|compuhost|pablo|torrent)\b", "", n, flags=re.IGNORECASE)
+        n = re.sub(r"\bS\d+\s*E\d+(-E?\d+)*\b", "", n, flags=re.IGNORECASE)
+        n = re.sub(r"\b(\d+)\s*x\s*(\d+)(\s*-\s*(\d+))?\b", "", n)
+        n = re.sub(r"\bE(\d+)\b", "", n)
+        n = re.sub(r"\bEpisodio?\s*\d+\b", "", n, flags=re.IGNORECASE)
+        n = re.sub(r"[._\-]+", " ", n)
+        n = re.sub(r"\s+", " ", n).strip()
+        return n.lower()
+
+    def get_grouped_skipped(self, reason: str) -> list:
+        """Return entries grouped by a common base title."""
+        entries = self.get_skipped_files(reason)
+        groups: Dict[str, list] = {}
+        for e in entries:
+            base = self._strip_se_ep(e.get("file_name", ""))
+            if not base:
+                base = "_ungrouped"
+            groups.setdefault(base, []).append(e)
+        sorted_groups = sorted(groups.items(), key=lambda x: (-len(x[1]), x[0]))
+        return [
+            {"base": base, "count": len(lst), "entries": lst}
+            for base, lst in sorted_groups
+        ]
+
+    # ── Telegram helpers ─────────────────────────────────────────────────────
+
+    async def delete_telegram_message(self, client, channel: int, msg_id: int) -> bool:
+        """Delete a message from the Telegram channel."""
+        try:
+            chat_id = int(f"-100{channel}")
+            await client.delete_messages(chat_id, [msg_id])
+            return True
+        except Exception as e:
+            LOGGER.warning(f"[ScanManager] Could not delete Telegram msg {channel}/{msg_id}: {e}")
+            return False
 
     # ── Purge (rescan helper) ────────────────────────────────────────────────
     async def _purge_channel_entries(self, channel_int: int) -> int:

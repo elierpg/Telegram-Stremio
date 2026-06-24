@@ -3,56 +3,120 @@
 {% block content %}
 <style>
   .tool-card { background: var(--card-bg, rgba(255,255,255,0.05)); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.5rem; }
-  .skip-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-  .skip-table th { text-align: left; padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1)); color: var(--text-muted, #94a3b8); font-weight: 600; white-space: nowrap; }
-  .skip-table td { padding: 0.65rem 0.5rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05)); vertical-align: middle; }
-  .skip-table tr:hover td { background: rgba(255,255,255,0.03); }
-  .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-  .badge-meta { background: #f59e0b20; color: #f59e0b; }
-  .badge-nonvid { background: #ef444420; color: #ef4444; }
-  .filename-cell { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted, #94a3b8); }
   .empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.4; }
-  .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
-  .tab { padding: 0.5rem 1.25rem; border-radius: 9999px; cursor: pointer; font-weight: 600; transition: all 0.2s; border: 1px solid transparent; }
+  .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .tab { padding: 0.5rem 1.25rem; border-radius: 9999px; cursor: pointer; font-weight: 600; transition: all 0.2s; border: 1px solid transparent; font-size: 0.85rem; }
   .tab-active { background: var(--primary, #6366f1); color: #fff; }
   .tab-inactive { background: transparent; color: var(--text-muted, #94a3b8); border-color: var(--border-color, rgba(255,255,255,0.1)); }
   .tab-inactive:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
-  .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.8rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; transition: all 0.15s; border: none; }
+  .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.8rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; transition: all 0.15s; border: none; white-space: nowrap; }
   .btn-primary { background: var(--primary, #6366f1); color: #fff; }
   .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-danger { background: #ef4444; color: #fff; }
   .btn-danger:hover { opacity: 0.85; }
   .btn-outline { background: transparent; border: 1px solid var(--border-color, rgba(255,255,255,0.2)); color: var(--text-muted, #94a3b8); }
   .btn-outline:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
+  .btn-success { background: #22c55e; color: #fff; }
+  .btn-success:hover { opacity: 0.85; }
+
+  .group-hdr { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.65rem; border-radius: 0.6rem; cursor: pointer; transition: background 0.15s; border: 1px solid var(--border-color, rgba(255,255,255,0.06)); margin-bottom: 0.25rem; user-select: none; }
+  .group-hdr:hover { background: rgba(255,255,255,0.04); }
+  .group-hdr .icon { width: 20px; text-align: center; color: var(--text-muted, #94a3b8); transition: transform 0.2s; font-size: 0.8rem; flex-shrink: 0; }
+  .group-hdr .icon.open { transform: rotate(90deg); }
+  .group-hdr .title { flex: 1; min-width: 0; font-weight: 700; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .group-hdr .count { font-size: 0.75rem; color: var(--text-muted, #94a3b8); background: rgba(255,255,255,0.06); padding: 0.15rem 0.55rem; border-radius: 999px; white-space: nowrap; }
+  .group-hdr .inject { font-size: 0.7rem; }
+
+  .group-body { padding-left: 0.25rem; }
+
+  /* ── Batch bar ── */
+  .batch-bar { display: none; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-radius: 0.75rem; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); margin-bottom: 1rem; flex-wrap: wrap; }
+  .batch-bar.show { display: flex; }
+  .batch-bar .count { font-weight: 700; font-size: 0.9rem; color: var(--primary, #6366f1); margin-right: auto; }
+
+  /* ── Desktop table (inside group body) ── */
+  .skip-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .skip-table th { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1)); color: var(--text-muted, #94a3b8); font-weight: 600; white-space: nowrap; }
+  .skip-table td { padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05)); vertical-align: middle; }
+  .skip-table tr:hover td { background: rgba(255,255,255,0.03); }
+  .skip-table .chk { width: 36px; text-align: center; }
+  .skip-table .chk input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary, #6366f1); }
+  .skip-table .fname { max-width: 0; width: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .skip-table .chnl { white-space: nowrap; }
+  .skip-table .size { white-space: nowrap; }
+  .skip-table .actions { white-space: nowrap; text-align: right; }
+
+  /* ── Mobile card list ── */
+  .skip-cards { display: none; }
+  @media (max-width: 640px) {
+    .skip-table { display: none; }
+    .skip-cards { display: flex; flex-direction: column; gap: 0.5rem; }
+    .skip-card { background: var(--card-bg, rgba(255,255,255,0.03)); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 0.85rem; padding: 0.75rem; }
+    .skip-card-top { display: flex; align-items: flex-start; gap: 0.6rem; }
+    .skip-card-top input[type=checkbox] { margin-top: 0.2rem; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primary, #6366f1); cursor: pointer; }
+    .skip-card-fname { flex: 1; min-width: 0; font-size: 0.85rem; font-weight: 600; word-break: break-all; line-height: 1.3; }
+    .skip-card-meta { margin-top: 0.4rem; margin-left: 1.7rem; display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; font-size: 0.75rem; color: var(--text-muted, #94a3b8); }
+    .skip-card-meta code { font-size: 0.75rem; }
+    .skip-card-actions { margin-top: 0.5rem; margin-left: 1.7rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .tool-card { padding: 1rem; }
+    .group-hdr { padding: 0.5rem; }
+    .group-hdr .title { font-size: 0.85rem; }
+  }
+
+  /* ── Modal ── */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; align-items: center; justify-content: center; }
   .modal-overlay.open { display: flex; }
-  .modal-box { background: var(--card-bg, #1e1e2e); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 1rem; padding: 2rem; max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto; }
-  .modal-box input, .modal-box select { width: 100%; padding: 0.6rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(0,0,0,0.2); color: inherit; margin-bottom: 0.5rem; font-size: 0.9rem; }
+  .modal-box { background: var(--card-bg, #1e1e2e); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 1rem; padding: 1.5rem; max-width: 560px; width: 92%; max-height: 90vh; overflow-y: auto; }
+  .modal-box h3 { font-size: 1.1rem; margin-bottom: 0.25rem; }
+  .modal-box input[type=text], .modal-box select { width: 100%; padding: 0.6rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(0,0,0,0.2); color: inherit; margin-bottom: 0.5rem; font-size: 0.9rem; box-sizing: border-box; }
   .modal-box label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted, #94a3b8); margin-bottom: 0.25rem; display: block; }
-  .search-type-toggle { display: flex; gap: 0.4rem; margin: 0.5rem 0 0.75rem; }
-  .search-type-toggle button { padding: 0.3rem 0.8rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: transparent; color: var(--text-muted, #94a3b8); cursor: pointer; transition: all 0.15s; }
-  .search-type-toggle button.active { background: var(--primary, #6366f1); color: #fff; border-color: var(--primary, #6366f1); }
-  .search-result { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.75rem; border-radius: 0.6rem; border: 1px solid var(--border-color, rgba(255,255,255,0.08)); margin-bottom: 0.4rem; cursor: pointer; transition: all 0.15s; }
+  .modal-box hr { border: none; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08)); margin: 0.75rem 0; }
+  .modal-box .group-apply { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.65rem; border-radius: 0.5rem; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); margin-bottom: 0.75rem; font-size: 0.8rem; cursor: pointer; }
+  .modal-box .group-apply input { width: auto; margin: 0; accent-color: #22c55e; cursor: pointer; }
+  .modal-box .group-apply input[type=checkbox] { width: auto; }
+  .search-result { display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem 0.65rem; border-radius: 0.6rem; border: 1px solid var(--border-color, rgba(255,255,255,0.08)); margin-bottom: 0.35rem; cursor: pointer; transition: all 0.15s; }
   .search-result:hover { border-color: var(--primary, #6366f1); background: rgba(99,102,241,0.08); }
   .search-result.selected { border-color: #22c55e; background: rgba(34,197,94,0.08); }
-  .search-result img { width: 40px; height: 56px; object-fit: cover; border-radius: 0.4rem; flex-shrink: 0; }
+  .search-result img { width: 36px; height: 52px; object-fit: cover; border-radius: 0.35rem; flex-shrink: 0; }
   .search-result .info { flex: 1; min-width: 0; }
-  .search-result .info .title { font-weight: 600; font-size: 0.9rem; }
-  .search-result .info .meta { font-size: 0.75rem; color: var(--text-muted, #94a3b8); }
-  .toast { position: fixed; bottom: 2rem; right: 2rem; padding: 0.75rem 1.5rem; border-radius: 0.75rem; color: #fff; font-weight: 600; z-index: 9999; animation: fadeInUp 0.3s ease; cursor: pointer; }
+  .search-result .info .title { font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search-result .info .meta { font-size: 0.72rem; color: var(--text-muted, #94a3b8); }
+
+  .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; left: 1.5rem; max-width: 360px; margin: 0 auto; padding: 0.75rem 1.25rem; border-radius: 0.75rem; color: #fff; font-weight: 600; z-index: 9999; animation: fadeInUp 0.3s ease; cursor: pointer; text-align: center; font-size: 0.9rem; }
   .toast-success { background: #22c55e; }
   .toast-error { background: #ef4444; }
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: translateY(0); } }
+
+  .batch-progress { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 998; align-items: center; justify-content: center; }
+  .batch-progress.open { display: flex; }
+  .batch-progress-box { background: var(--card-bg, #1e1e2e); border-radius: 1rem; padding: 2rem; text-align: center; max-width: 360px; width: 85%; }
+  .batch-progress-box .spinner { font-size: 2.5rem; margin-bottom: 1rem; }
+  .batch-progress-box .status { font-size: 0.9rem; color: var(--text-muted, #94a3b8); margin-top: 0.5rem; }
 </style>
 
 <div class="max-w-6xl mx-auto px-4 py-6">
   <h1 class="text-2xl font-bold mb-1">Review Skipped Files</h1>
-  <p class="text-sm" style="color: var(--text-muted, #94a3b8);">Files that were skipped during channel scan — manually index them with optional metadata override.</p>
+  <p class="text-sm" style="color: var(--text-muted, #94a3b8);">Files skipped during channel scan — grouped by similar name. Click a group to expand.</p>
 
   <div class="tabs" style="margin-top: 1.5rem;">
     <div class="tab tab-active" data-tab="meta" onclick="switchTab('meta')">⚠️ Metadata Failed</div>
     <div class="tab tab-inactive" data-tab="nonvid" onclick="switchTab('nonvid')">📎 Non-Video</div>
+  </div>
+
+  <!-- Batch action bar -->
+  <div class="batch-bar" id="batch-bar">
+    <span class="count" id="sel-count">0 selected</span>
+    <button class="btn-sm btn-primary" onclick="batchIndex()"><i class="fa-solid fa-play"></i> Index all</button>
+    <button class="btn-sm btn-danger" onclick="batchDismiss()"><i class="fa-solid fa-trash"></i> Dismiss all</button>
+    <button class="btn-sm btn-outline" onclick="clearSelection()">Clear</button>
+  </div>
+
+  <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap;">
+    <button class="btn-sm btn-outline" onclick="expandAll()"><i class="fa-solid fa-plus-circle"></i> Expand all</button>
+    <button class="btn-sm btn-outline" onclick="collapseAll()"><i class="fa-solid fa-minus-circle"></i> Collapse all</button>
+    <span style="font-size:0.8rem; color:var(--text-muted,#94a3b8); margin-left:auto;" id="total-count"></span>
   </div>
 
   <div class="tool-card" id="skipped-list">
@@ -60,30 +124,35 @@
   </div>
 </div>
 
-<!-- Retry modal -->
+<!-- Retry modal (single & batch) -->
 <div class="modal-overlay" id="retry-modal">
   <div class="modal-box">
-    <h3 class="text-lg font-bold mb-1">📺 Search &amp; index</h3>
-    <p class="text-xs" style="color: var(--text-muted, #94a3b8); margin-bottom: 0.75rem;">
-      Search for the correct title, then click a result to index. Or enter an IMDb/TMDb ID manually.
+    <h3 class="text-lg font-bold mb-1">🔍 Search &amp; index</h3>
+    <p class="text-xs" style="color: var(--text-muted, #94a3b8); margin-bottom: 0.75rem;" id="retry-desc">
+      Search for the correct title and click a result.
     </p>
-
+    <div id="group-apply-container"></div>
     <label for="search-input">Search</label>
     <input id="search-input" type="text" placeholder="Search title…" autocomplete="off" oninput="searchDebounced()">
-
-    <div id="search-results" style="margin-bottom: 0.75rem; min-height: 0;">
+    <div id="search-results" style="margin-bottom: 0.5rem; min-height: 0;">
       <div class="empty-state" style="padding:1rem;font-size:0.85rem;"><i class="fa-solid fa-search" style="font-size:1.5rem;"></i><br>Type to search…</div>
     </div>
-
-    <hr style="border-color: var(--border-color, rgba(255,255,255,0.08)); margin: 0.5rem 0;">
-
+    <hr>
     <label for="override-input">Or enter IMDb / TMDb ID</label>
     <input id="override-input" type="text" placeholder="e.g. tt0459666 or 2542" autocomplete="off">
-
     <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.75rem;">
       <button class="btn-sm btn-outline" onclick="closeModal()">Cancel</button>
-      <button class="btn-sm btn-primary" id="retry-confirm" onclick="confirmRetry()">Index with ID</button>
+      <button class="btn-sm btn-primary" id="retry-confirm" onclick="confirmRetry()">Index</button>
     </div>
+  </div>
+</div>
+
+<!-- Batch progress -->
+<div class="batch-progress" id="batch-progress">
+  <div class="batch-progress-box">
+    <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
+    <div style="font-weight:700;" id="batch-progress-label">Processing…</div>
+    <div class="status" id="batch-progress-status">0 / 0</div>
   </div>
 </div>
 
@@ -91,6 +160,8 @@
 let currentReason = 'meta';
 let retryTarget = null;
 let searchTimer = null;
+let allGroups = [];
+let allEntriesFlat = [];
 
 function switchTab(reason) {
   currentReason = reason;
@@ -101,55 +172,309 @@ function switchTab(reason) {
   loadSkipped();
 }
 
+// ── Load & render groups ───────────────────────────────────────────────────
+
 async function loadSkipped() {
   const container = document.getElementById('skipped-list');
   container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><br>Loading…</div>';
   try {
-    const resp = await fetch(`/api/admin/tools/scan/skipped?reason=${currentReason}`);
+    const resp = await fetch(`/api/admin/tools/scan/skipped?reason=${currentReason}&grouped=true`);
     const json = await resp.json();
     if (json.status !== 'success') throw new Error(json.detail || 'Unknown error');
-    renderSkipped(json.data);
+    allEntriesFlat = json.data || [];
+    renderGroups(json.groups || [], json.data || []);
   } catch (e) {
     container.innerHTML = `<div class="empty-state" style="color:#ef4444;"><i class="fa-solid fa-exclamation-triangle"></i><br>Error: ${e.message}</div>`;
   }
 }
 
-function renderSkipped(entries) {
+function renderGroups(groups, entries) {
   const container = document.getElementById('skipped-list');
+  document.getElementById('total-count').textContent = entries.length + ' file' + (entries.length !== 1 ? 's' : '');
+
   if (!entries || entries.length === 0) {
     container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color:#22c55e;"></i><br>No skipped files in this category.</div>';
     return;
   }
 
-  let html = `<table class="skip-table"><thead><tr>
-    <th>File</th>
-    <th>Channel</th>
-    <th>ID</th>
-    <th>Size</th>
-    <th style="text-align:right;">Actions</th>
-  </tr></thead><tbody>`;
+  allGroups = groups;
+  let html = '';
 
-  for (const e of entries) {
-    const fname = e.file_name || '(no name)';
-    const cap = e.caption ? e.caption.substring(0, 60) : '';
-    const sizeStr = e.file_size ? formatSize(e.file_size) : '—';
-    const fnameEsc = esc(fname);
-    html += `<tr>
-      <td><div class="filename-cell" title="${fnameEsc}${cap ? ' — ' + esc(cap) : ''}">${fnameEsc}</div></td>
-      <td><code>${esc(String(e.channel))}</code></td>
-      <td><code>${e.msg_id}</code></td>
-      <td>${sizeStr}</td>
-      <td style="text-align:right; white-space:nowrap;">
-        <button class="btn-sm btn-primary" onclick="openRetry(${e.channel}, ${e.msg_id}, '${fnameEsc.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i> Index</button>
-        <button class="btn-sm btn-danger" onclick="dismiss(${e.channel}, ${e.msg_id})"><i class="fa-solid fa-trash"></i></button>
-      </td>
-    </tr>`;
+  for (const g of groups) {
+    const base = esc(g.base !== '_ungrouped' ? g.base : '(miscellaneous)');
+    let tableRows = '';
+    let cardHtml = '';
+
+    for (const e of g.entries) {
+      const fname = e.file_name || '(no name)';
+      const sizeStr = e.file_size ? formatSize(e.file_size) : '—';
+      const fnameEsc = esc(fname);
+      const checked = isSelected(e.channel, e.msg_id) ? 'checked' : '';
+
+      tableRows += `<tr>
+        <td class="chk"><input type="checkbox" data-channel="${e.channel}" data-msg="${e.msg_id}" onchange="updateBatchBar()" ${checked}></td>
+        <td><div class="fname" title="${fnameEsc}">${fnameEsc}</div></td>
+        <td class="chnl"><code>${esc(String(e.channel))}</code></td>
+        <td class="size">${sizeStr}</td>
+        <td class="actions">
+          <button class="btn-sm btn-primary" onclick="openRetryFromGroup('${g.base}', {channel:${e.channel},msgId:${e.msg_id}},'${fnameEsc.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i></button>
+          <button class="btn-sm btn-danger" onclick="dismiss(${e.channel}, ${e.msg_id})"><i class="fa-solid fa-trash"></i></button>
+        </td>
+      </tr>`;
+
+      cardHtml += `<div class="skip-card">
+        <div class="skip-card-top">
+          <input type="checkbox" data-channel="${e.channel}" data-msg="${e.msg_id}" onchange="updateBatchBar()" ${checked}>
+          <div class="skip-card-fname" title="${fnameEsc}">${fnameEsc}</div>
+        </div>
+        <div class="skip-card-meta">
+          <span>📺 <code>${esc(String(e.channel))}</code></span>
+          <span>#${e.msg_id}</span>
+          <span>${sizeStr}</span>
+        </div>
+        <div class="skip-card-actions">
+          <button class="btn-sm btn-primary" onclick="openRetryFromGroup('${g.base}', {channel:${e.channel},msgId:${e.msg_id}},'${fnameEsc.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i> Index</button>
+          <button class="btn-sm btn-danger" onclick="dismiss(${e.channel}, ${e.msg_id})"><i class="fa-solid fa-trash"></i> Dismiss</button>
+        </div>
+      </div>`;
+    }
+
+    html += `<div class="group-section">
+      <div class="group-hdr" onclick="toggleGroup(this)">
+        <div class="icon open">▶</div>
+        <div class="title">${base}</div>
+        <div class="count">${g.count} file${g.count !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="group-body">
+        <table class="skip-table"><thead><tr>
+          <th class="chk"></th>
+          <th>File</th>
+          <th class="chnl">Channel</th>
+          <th class="size">Size</th>
+          <th class="actions">Actions</th>
+        </tr></thead><tbody>${tableRows}</tbody></table>
+        <div class="skip-cards">${cardHtml}</div>
+      </div>
+    </div>`;
   }
 
-  html += `</tbody></table>`;
-  html += `<p style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-muted,#94a3b8);">${entries.length} file${entries.length !== 1 ? 's' : ''}</p>`;
   container.innerHTML = html;
+  updateBatchBar();
 }
+
+function toggleGroup(el) {
+  const body = el.nextElementSibling;
+  const icon = el.querySelector('.icon');
+  if (!body) return;
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? '' : 'none';
+  if (icon) icon.classList.toggle('open', isHidden);
+}
+
+function expandAll() {
+  document.querySelectorAll('.group-body').forEach(b => b.style.display = '');
+  document.querySelectorAll('.group-hdr .icon').forEach(i => i.classList.add('open'));
+}
+
+function collapseAll() {
+  document.querySelectorAll('.group-body').forEach(b => b.style.display = 'none');
+  document.querySelectorAll('.group-hdr .icon').forEach(i => i.classList.remove('open'));
+}
+
+// ── Selection ──────────────────────────────────────────────────────────────
+
+function getSelected() {
+  const cbs = document.querySelectorAll('#skipped-list input[type=checkbox][data-channel]');
+  const sel = [];
+  for (const cb of cbs) {
+    if (cb.checked) sel.push({ channel: Number(cb.dataset.channel), msgId: Number(cb.dataset.msg) });
+  }
+  return sel;
+}
+
+function getSelectedCount() { return getSelected().length; }
+
+function isSelected(channel, msgId) {
+  return document.querySelector(`#skipped-list input[type=checkbox][data-channel="${channel}"][data-msg="${msgId}"]`)?.checked || false;
+}
+
+function toggleAllInGroup(hdr, checked) {
+  const body = hdr.nextElementSibling;
+  if (!body) return;
+  body.querySelectorAll('input[type=checkbox][data-channel]').forEach(cb => cb.checked = checked);
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const n = getSelectedCount();
+  const bar = document.getElementById('batch-bar');
+  document.getElementById('sel-count').textContent = n + ' selected';
+  bar.classList.toggle('show', n > 0);
+}
+
+function clearSelection() {
+  document.querySelectorAll('#skipped-list input[type=checkbox][data-channel]').forEach(cb => cb.checked = false);
+  updateBatchBar();
+}
+
+// ── Group-aware index ──────────────────────────────────────────────────────
+
+function openRetryFromGroup(baseName, entry, fileNameHint) {
+  const group = allGroups.find(g => g.base === baseName);
+  let allEntries = [entry];
+  if (group && group.entries.length > 1) {
+    const others = group.entries.filter(
+      e => !(e.channel === entry.channel && e.msg_id === entry.msgId)
+    );
+    allEntries = [entry, ...others.map(e => ({ channel: e.channel, msgId: e.msg_id }))];
+  }
+  openRetry(allEntries, fileNameHint, group ? group.count : 1);
+}
+
+function batchIndex() {
+  const sel = getSelected();
+  if (!sel.length) return;
+  openRetry(sel, sel.length > 1 ? '(batch)' : '');
+}
+
+function openRetry(entries, fileNameHint, groupSize) {
+  const isBatch = entries.length > 1;
+  retryTarget = { entries };
+  document.getElementById('group-apply-container').innerHTML = '';
+
+  if (isBatch) {
+    document.getElementById('retry-desc').textContent =
+      groupSize > 1
+        ? `🎯 ${groupSize} similar files — the override will apply to all of them.`
+        : `Indexing ${entries.length} files — search once, applies to all selected.`;
+  } else {
+    document.getElementById('retry-desc').textContent = 'Search for the correct title and click a result.';
+    // Show auto-apply checkbox if there are group siblings available
+    if (entries.length > 1) {
+      const n = entries.length - 1;
+      document.getElementById('group-apply-container').innerHTML =
+        `<label class="group-apply"><input type="checkbox" id="auto-apply-group" checked>
+          <span>Also index <strong>${n}</strong> similar file${n !== 1 ? 's' : ''} from this group</span>
+        </label>`;
+      document.getElementById('retry-desc').textContent = 'Search once — the override applies to all similar files.';
+    }
+  }
+
+  document.getElementById('override-input').value = '';
+  const cleaned = cleanQuery(fileNameHint || '');
+  document.getElementById('search-input').value = cleaned || fileNameHint || '';
+  document.getElementById('search-results').innerHTML = '<div class="empty-state" style="padding:1rem;"><i class="fa-solid fa-spinner fa-spin"></i><br>Searching…</div>';
+  document.getElementById('retry-modal').classList.add('open');
+  if (cleaned || fileNameHint) {
+    setTimeout(() => doSearch(), 100);
+  }
+}
+
+function closeModal() {
+  document.getElementById('retry-modal').classList.remove('open');
+  retryTarget = null;
+}
+
+async function confirmRetry() {
+  if (!retryTarget) return;
+  let entries = retryTarget.entries || [];
+  if (!entries.length) return;
+
+  const autoApply = document.getElementById('auto-apply-group');
+  // If auto-apply checkbox exists and is checked, the entries already include
+  // group siblings from openRetryFromGroup, so no need to modify.
+
+  const btn = document.getElementById('retry-confirm');
+  btn.disabled = true;
+  btn.textContent = 'Indexing…';
+
+  const overrideId = document.getElementById('override-input').value.trim() || undefined;
+  const total = entries.length;
+  let ok = 0, fail = 0;
+
+  showBatchProgress(`Indexing ${total} file${total !== 1 ? 's' : ''}…`, `0 / ${total}`);
+
+  for (let i = 0; i < total; i++) {
+    const { channel, msgId } = entries[i];
+    try {
+      const resp = await fetch('/api/admin/tools/scan/retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, msg_id: msgId, override_id: overrideId }),
+      });
+      const json = await resp.json();
+      if (json.status === 'success') ok++; else fail++;
+    } catch { fail++; }
+    updateBatchProgress(`${i + 1} / ${total}`);
+  }
+
+  hideBatchProgress();
+  showToast(`✅ ${ok} indexed${fail ? ', ' + fail + ' failed' : ''}`, fail ? 'error' : 'success');
+  btn.disabled = false;
+  btn.textContent = 'Index';
+  closeModal();
+  loadSkipped();
+}
+
+// ── Dismiss with Telegram delete ───────────────────────────────────────────
+
+async function batchDismiss() {
+  const sel = getSelected();
+  if (!sel.length) return;
+  if (!confirm(`Dismiss ${sel.length} file${sel.length !== 1 ? 's' : ''} from the list (message will be deleted from Telegram too)?`)) return;
+
+  let ok = 0, fail = 0;
+  showBatchProgress(`Dismissing ${sel.length} file${sel.length !== 1 ? 's' : ''}…`, `0 / ${sel.length}`);
+
+  for (let i = 0; i < sel.length; i++) {
+    const { channel, msgId } = sel[i];
+    try {
+      const resp = await fetch(`/api/admin/tools/scan/skipped/${currentReason}/${channel}/${msgId}?delete_telegram=true`, { method: 'DELETE' });
+      const json = await resp.json();
+      if (json.status === 'success') ok++; else fail++;
+    } catch { fail++; }
+    updateBatchProgress(`${i + 1} / ${sel.length}`);
+  }
+
+  hideBatchProgress();
+  showToast(`✅ ${ok} dismissed${fail ? ', ' + fail + ' failed' : ''}`, fail ? 'error' : 'success');
+  loadSkipped();
+}
+
+async function dismiss(channel, msgId) {
+  if (!confirm('Remove this entry and delete the message from Telegram?')) return;
+  try {
+    const resp = await fetch(`/api/admin/tools/scan/skipped/${currentReason}/${channel}/${msgId}?delete_telegram=true`, { method: 'DELETE' });
+    const json = await resp.json();
+    if (json.status === 'success') {
+      showToast('Removed. ' + (json.telegram_deleted ? 'Telegram message deleted.' : 'Could not delete Telegram message (may have expired).'), 'success');
+      loadSkipped();
+    } else {
+      showToast(json.detail || 'Failed to remove.', 'error');
+    }
+  } catch (e) {
+    showToast('Network error: ' + e.message, 'error');
+  }
+}
+
+// ── Batch progress UI ──────────────────────────────────────────────────────
+
+function showBatchProgress(label, status) {
+  document.getElementById('batch-progress-label').textContent = label;
+  document.getElementById('batch-progress-status').textContent = status;
+  document.getElementById('batch-progress').classList.add('open');
+}
+
+function updateBatchProgress(status) {
+  const el = document.getElementById('batch-progress-status');
+  if (el) el.textContent = status;
+}
+
+function hideBatchProgress() {
+  document.getElementById('batch-progress').classList.remove('open');
+}
+
+// ── Search ─────────────────────────────────────────────────────────────────
 
 function searchDebounced() {
   clearTimeout(searchTimer);
@@ -157,15 +482,10 @@ function searchDebounced() {
 }
 
 function cleanQuery(raw) {
-  let q = raw.trim();
-  // remove file extension
+  let q = (raw || '').trim();
   q = q.replace(/\.(mkv|mp4|avi|mov|m4v|wmv|flv|ts)$/i, '');
-  // replace dots, underscores, hyphens with spaces
   q = q.replace(/[._\-]+/g, ' ');
-  // remove common noise words (resolution, codec, source, release group)
   q = q.replace(/\b(720p|1080p|2160p|480p|360p|4k|uhd|x264|x265|h264|h265|hevc|bluray|web.?dl|web|dvdrip|brrip|hdrip|hdtv|aac|ac3|ddp|dd5|dts|mp3|pahe\.?in|yts|rarbg|ettv|eztv|mkv|cinecalidad|hdfull|compuhost|pablo)\b/gi, '');
-  // remove year (but keep it — TMDb handles years in query fine)
-  // collapse spaces
   q = q.replace(/\s+/g, ' ').trim();
   return q;
 }
@@ -180,7 +500,6 @@ async function doSearch() {
   }
   container.innerHTML = '<div class="empty-state" style="padding:1rem;"><i class="fa-solid fa-spinner fa-spin"></i><br>Searching…</div>';
 
-  // search both movie and TV, merge results
   try {
     const [movieResp, tvResp] = await Promise.all([
       fetch(`/api/media/rescan/search?media_type=movie&query=${encodeURIComponent(q)}`),
@@ -190,11 +509,9 @@ async function doSearch() {
     const tvJson = await tvResp.json();
     const movieResults = (movieJson.results || []).map(r => ({ ...r, _media_type: 'movie' }));
     const tvResults = (tvJson.results || []).map(r => ({ ...r, _media_type: 'tv' }));
-    const all = [...movieResults, ...tvResults];
-    // deduplicate by tmdb_id
     const seen = new Set();
     const merged = [];
-    for (const r of all) {
+    for (const r of [...movieResults, ...tvResults]) {
       const key = r.tmdb_id || r.imdb_id || r.title;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -220,7 +537,7 @@ function renderSearchResults(results) {
     const overrideId = r.tmdb_id || r.imdb_id || '';
     const mediaLabel = r._media_type === 'movie' ? '🎬 Movie' : '📺 TV';
     html += `<div class="search-result" onclick="selectResult('${overrideId}', this)">
-      ${poster ? `<img src="${esc(poster)}" alt="" loading="lazy">` : '<div style="width:40px;height:56px;border-radius:0.4rem;background:var(--border-color,rgba(255,255,255,0.08));flex-shrink:0;"></div>'}
+      ${poster ? `<img src="${esc(poster)}" alt="" loading="lazy">` : '<div style="width:36px;height:52px;border-radius:0.35rem;background:var(--border-color,rgba(255,255,255,0.08));flex-shrink:0;"></div>'}
       <div class="info">
         <div class="title">${esc(title)}</div>
         <div class="meta">${mediaLabel}${year ? ' · ' + year : ''}</div>
@@ -243,77 +560,19 @@ function selectResult(id, el) {
   document.getElementById('override-input').value = id;
 }
 
-function openRetry(channel, msgId, fileName) {
-  retryTarget = { channel, msgId };
-  document.getElementById('override-input').value = '';
-  const cleaned = cleanQuery(fileName || '');
-  document.getElementById('search-input').value = cleaned || fileName || '';
-  document.getElementById('search-results').innerHTML = '<div class="empty-state" style="padding:1rem;"><i class="fa-solid fa-spinner fa-spin"></i><br>Searching…</div>';
-  document.getElementById('retry-modal').classList.add('open');
-  if (cleaned || fileName) {
-    setTimeout(() => doSearch(), 100);
-  }
-}
-
-function closeModal() {
-  document.getElementById('retry-modal').classList.remove('open');
-  retryTarget = null;
-}
-
-async function confirmRetry() {
-  if (!retryTarget) return;
-  const btn = document.getElementById('retry-confirm');
-  btn.disabled = true;
-  btn.textContent = 'Indexing…';
-  const overrideId = document.getElementById('override-input').value.trim() || undefined;
-  try {
-    const resp = await fetch('/api/admin/tools/scan/retry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel: retryTarget.channel, msg_id: retryTarget.msgId, override_id: overrideId }),
-    });
-    const json = await resp.json();
-    if (json.status === 'success') {
-      showToast('✅ Indexed successfully!', 'success');
-      closeModal();
-      loadSkipped();
-    } else {
-      showToast('❌ ' + (json.detail || 'Retry failed'), 'error');
-    }
-  } catch (e) {
-    showToast('❌ Network error: ' + e.message, 'error');
-  }
-  btn.disabled = false;
-  btn.textContent = 'Index with ID';
-}
-
-async function dismiss(channel, msgId) {
-  if (!confirm('Remove this entry from the skipped list?')) return;
-  try {
-    const resp = await fetch(`/api/admin/tools/scan/skipped/${currentReason}/${channel}/${msgId}`, { method: 'DELETE' });
-    const json = await resp.json();
-    if (json.status === 'success') {
-      showToast('Removed from list.', 'success');
-      loadSkipped();
-    } else {
-      showToast(json.detail || 'Failed to remove.', 'error');
-    }
-  } catch (e) {
-    showToast('Network error: ' + e.message, 'error');
-  }
-}
+// ── Utilities ──────────────────────────────────────────────────────────────
 
 function showToast(msg, type) {
   const el = document.createElement('div');
   el.className = `toast toast-${type}`;
   el.textContent = msg;
   document.body.appendChild(el);
-  setTimeout(() => { el.remove(); }, 3000);
+  setTimeout(() => { el.remove(); }, 3500);
   el.onclick = () => el.remove();
 }
 
 function formatSize(bytes) {
-  if (bytes === 0) return '0 B';
+  if (!bytes || bytes === 0) return '—';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
@@ -325,7 +584,7 @@ function esc(s) {
   return d.innerHTML;
 }
 
-// Load on page load
+// ── Init ───────────────────────────────────────────────────────────────────
 loadSkipped();
 </script>
 {% endblock %}
