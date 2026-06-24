@@ -454,7 +454,7 @@ class ScanManager:
                 if SettingsManager.current().rename_captions:
                     new_cap = format_caption(metadata_info)
                     asyncio.ensure_future(edit_message(
-                        chat_id=chat_id,
+                        chat_id=message.chat.id,
                         msg_id=msg_id,
                         new_caption=new_cap,
                     ))
