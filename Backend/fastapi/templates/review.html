@@ -35,13 +35,13 @@
 
   .skip-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   .skip-table th { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1)); color: var(--text-muted, #94a3b8); font-weight: 600; white-space: nowrap; font-size: 0.78rem; }
-  .skip-table td { padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05)); vertical-align: middle; }
+  .skip-table td { padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05)); vertical-align: middle; }
   .skip-table tr:hover td { background: rgba(255,255,255,0.03); }
   .skip-table .chk { width: 36px; text-align: center; }
   .skip-table .chk input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary, #6366f1); }
-  .skip-table .fname { max-width: 0; width: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .skip-table .fname { word-break: break-all; line-height: 1.35; }
   .skip-table .chnl { white-space: nowrap; }
-  .skip-table .size { white-space: nowrap; color: var(--text-muted, #94a3b8); }
+  .skip-table .size { text-align: right; white-space: nowrap; color: var(--text-muted, #94a3b8); }
   .skip-table .actions { white-space: nowrap; text-align: right; }
 
   .skip-cards { display: none; }
