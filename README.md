@@ -10,56 +10,43 @@ pinned: false
 
 # MyNuvios — Telegram Stremio
 
-Esto no es otro fork genérico de Telegram-Stremio. La mayoría de los repositorios que ves por GitHub son copias casi idénticas del proyecto base con cambios mínimos. Este no es el caso.
+Servidor de medios que conecta Telegram con Stremio. Enviás archivos a un canal de Telegram y se convierten automáticamente en un addon de Stremio para streaming directo.
 
-**MyNuvios** arrancó desde ese mismo origen, pero hoy es un proyecto diferente: reescrito, extendido y adaptado para uso real con administración completa desde el navegador, sin depender de comandos de bot para tareas críticas.
+## Cómo funciona
 
-## ¿Qué lo hace distinto?
+1. Enviás archivos de video a un canal o grupo de Telegram.
+2. El bot los procesa, extrae metadatos (nombre, año, calidad, temporada/episodio) y los guarda en MongoDB.
+3. El addon de Stremio expone los archivos como catálogo con metadatos de TMDb/IMDb.
+4. Reproducís directo desde Stremio sin descargar ni esperar.
 
-### WebUI como centro de control
+## Características
 
-El proyecto original depende casi enteramente de comandos de bot para administrar el servidor. MyNuvios tiene un panel web completo:
-
-- **Escaneo y re-escaneo** desde la web, con progreso en tiempo real.
-- **Revisión de archivos fallidos** con interfaz para corregir metadatos manualmente, buscar en TMDb/IMDb, y re-indexar — todo desde el navegador.
-- **Panel de herramientas**: verificación de base de datos, limpieza de enlaces muertos, estado del sistema.
-- **Configuración** en vivo desde el panel, sin reiniciar el servidor.
-- **Gestión de suscripciones y premium** por usuario.
-- **Dashboard** con estadísticas de almacenamiento, bases de datos, y actividad.
-
-### No necesitas ser admin de Telegram para usarlo
-
-Mientras el proyecto original asume que operás todo desde comandos de bot, acá podés tener usuarios con suscripciones que acceden solo por web. Ideal si querés compartir tu servidor con otras personas sin darles acceso a tu bot.
-
-### Streaming más robusto
-
-- **Multi-token load balancer**: varios tokens de Telegram rotan para evitar rate limits y caídas por sesión expirada.
-- **Soporte para archivos divididos**: reproducí archivos multiparte (`.001`, `.002`, etc.) como un solo stream continuo.
-- **Links permanentes**: no expiran, no dependen de que el bot esté activo.
-- **Proxy integrado**: el addon de Stremio puede servirse a través del mismo servidor.
-
-### Base de datos flexible
-
-Soporte para **múltiples bases de datos MongoDB** simultáneas — podés separar tracking de storage, o distribuir medios entre varias instancias.
-
-### Metadata real
-
-Usa **guessit** + **TMDb API** para identificar contenido real, no solo el nombre del archivo. Si falla, podés corregirlo manualmente desde el panel de revisión. Incluye soporte para caracteres acentuados (series en español como "Aída" se parsean correctamente).
+- **Catálogos automáticos** — películas y series se organizan solos con metadata real.
+- **Panel web** — dashboard, escaneo, configuración, gestión de usuarios y suscripciones.
+- **Metadata con TMDb/IMDb** — portadas, sinopsis, año, reparto. Si falla, podés corregirlo manualmente.
+- **Multi-token** — varios bots de Telegram rotan para evitar rate limits.
+- **Archivos divididos** — reproducí archivos multiparte como un solo stream.
+- **Múltiples bases de datos** — soporte para varias instancias de MongoDB.
+- **Suscripciones y premium** — control de acceso por usuario con planes.
+- **Proxy integrado** — el addon se sirve desde el mismo servidor.
+- **Comandos de bot** — `/start`, `/set`, `/log`, `/restart`, `/scan`, `/rescan`.
+- **Búsqueda global** — buscá contenido en todos los canales indexados.
 
 ## Stack
 
-- **FastAPI** — backend web
-- **PyroFork** — cliente Telegram
-- **MongoDB** — base de datos
-- **Jinja2** — templates del panel web
-- **UV** — package manager (más rápido que pip)
-- **Docker** — despliegue
+| | |
+|---|---|
+| Backend | FastAPI (Python) |
+| Bot | PyroFork |
+| Base de datos | MongoDB |
+| Frontend | Jinja2 + vanilla JS |
+| Paquetería | UV |
+| Despliegue | Docker / Hugging Face Spaces |
 
-## Despliegue
+## Despliegue rápido en Hugging Face
 
-Creado para correr en **Hugging Face Spaces** (Docker), pero funciona en cualquier VPS con Docker.
-
-Agregá estos secretos en HF Spaces:
+1. Creá un Docker Space en HF.
+2. Agregá estos secretos:
 
 | Secret | Descripción |
 |---|---|
@@ -70,4 +57,19 @@ Agregá estos secretos en HF Spaces:
 | `OWNER_ID` | Tu ID de Telegram |
 | `DATABASE` | `tracking_uri,storage_uri` (2 URIs de MongoDB) |
 
-Después de desplegar, configura `BASE_URL`, `AUTH_CHANNEL` y `TMDB_API` desde el panel web en `/admin/config`.
+3. Desplegá.
+4. Entrá al panel web y configurá `BASE_URL`, `AUTH_CHANNEL` y `TMDB_API` en `/admin/config`.
+5. En `/admin/tools` escaneá tus canales para indexar el contenido.
+6. Copiá la URL del addon desde el panel y agregala en Stremio.
+
+## Requisitos
+
+- Python 3.11+
+- MongoDB (2 instancias recomendadas: tracking + storage)
+- Docker (para HF Spaces)
+- 2 bots de Telegram (principal + helper para streaming)
+- Canal de Telegram donde el bot sea admin
+
+## Licencia
+
+GPL-3.0
