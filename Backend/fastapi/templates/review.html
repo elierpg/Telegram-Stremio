@@ -22,7 +22,6 @@
   .btn-success { background: #22c55e; color: #fff; }
   .btn-xs { padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius: 0.4rem; }
 
-  /* ── Group header ── */
   .group-hdr { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.65rem; border-radius: 0.6rem; cursor: pointer; transition: background 0.15s; border: 1px solid var(--border-color, rgba(255,255,255,0.06)); margin-bottom: 0.25rem; user-select: none; }
   .group-hdr:hover { background: rgba(255,255,255,0.04); }
   .group-hdr .arrow { width: 18px; text-align: center; color: var(--text-muted, #94a3b8); transition: transform 0.2s; font-size: 0.75rem; flex-shrink: 0; }
@@ -31,12 +30,10 @@
   .group-hdr .gcount { font-size: 0.72rem; color: var(--text-muted, #94a3b8); background: rgba(255,255,255,0.06); padding: 0.15rem 0.5rem; border-radius: 999px; white-space: nowrap; }
   .group-body { padding-left: 0.25rem; }
 
-  /* ── Batch bar (top on desktop, fixed bottom on mobile) ── */
   .batch-bar { display: none; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-radius: 0.75rem; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); margin-bottom: 1rem; flex-wrap: wrap; }
   .batch-bar.show { display: flex; }
   .batch-bar .count { font-weight: 700; font-size: 0.9rem; color: var(--primary, #6366f1); margin-right: auto; }
 
-  /* ── Desktop table ── */
   .skip-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   .skip-table th { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1)); color: var(--text-muted, #94a3b8); font-weight: 600; white-space: nowrap; font-size: 0.78rem; }
   .skip-table td { padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05)); vertical-align: middle; }
@@ -48,25 +45,22 @@
   .skip-table .size { white-space: nowrap; color: var(--text-muted, #94a3b8); }
   .skip-table .actions { white-space: nowrap; text-align: right; }
 
-  /* ── Mobile cards (hidden by default) ── */
   .skip-cards { display: none; }
   .group-chk-all { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.1rem 0.35rem 2.2rem; font-size: 0.78rem; color: var(--text-muted, #94a3b8); cursor: pointer; }
   .group-chk-all input { width: 16px; height: 16px; accent-color: var(--primary, #6366f1); cursor: pointer; margin: 0; }
   .group-chk-all:hover { color: var(--primary, #6366f1); }
 
-  /* ── Select-all on page ── */
-  .select-all-label { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-muted, #94a3b8); cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.4rem; border: 1px solid var(--border-color, rgba(255,255,255,0.1)); user-select: none; }
-  .select-all-label:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
+  .select-all-label { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-muted, #94a3b8); cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.4rem; border: 1px solid var(--border-color, rgba(255,255,255,0.1)); user-select: none; transition: all 0.15s; }
+  .select-all-label:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); background: rgba(99,102,241,0.06); }
   .select-all-label input { width: 16px; height: 16px; accent-color: var(--primary, #6366f1); cursor: pointer; margin: 0; }
 
-  /* ── Pagination ── */
-  .pagination { display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color, rgba(255,255,255,0.06)); flex-wrap: wrap; }
-  .page-btn { padding: 0.35rem 0.75rem; border-radius: 0.4rem; border: 1px solid var(--border-color, rgba(255,255,255,0.12)); background: transparent; color: var(--text-muted, #94a3b8); cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.15s; }
-  .page-btn:hover:not(:disabled) { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
-  .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-  .page-btn.active { background: var(--primary, #6366f1); color: #fff; border-color: var(--primary, #6366f1); }
-  .page-info { font-size: 0.8rem; color: var(--text-muted, #94a3b8); padding: 0 0.5rem; white-space: nowrap; }
-  .page-size-select { background: transparent; border: 1px solid var(--border-color, rgba(255,255,255,0.12)); color: var(--text-muted, #94a3b8); padding: 0.3rem 0.4rem; border-radius: 0.4rem; font-size: 0.75rem; cursor: pointer; }
+  .pagination { display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color, rgba(255,255,255,0.06)); flex-wrap: wrap; }
+  .page-btn { padding: 0.35rem 0.7rem; border-radius: 0.4rem; border: 1px solid var(--border-color, rgba(255,255,255,0.1)); background: transparent; color: var(--text-muted, #94a3b8); cursor: pointer; font-size: 0.78rem; font-weight: 600; transition: all 0.15s; min-width: 32px; text-align: center; }
+  .page-btn:hover:not(:disabled) { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); background: rgba(99,102,241,0.08); }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .page-btn.active { background: var(--primary, #6366f1); color: #fff; border-color: var(--primary, #6366f1); box-shadow: 0 0 12px rgba(99,102,241,0.3); }
+  .page-info { font-size: 0.78rem; color: var(--text-muted, #94a3b8); padding: 0 0.35rem; white-space: nowrap; }
+  .page-size-select { background: transparent; border: 1px solid var(--border-color, rgba(255,255,255,0.1)); color: var(--text-muted, #94a3b8); padding: 0.25rem 0.35rem; border-radius: 0.4rem; font-size: 0.75rem; cursor: pointer; }
 
   @media (max-width: 640px) {
     .skip-table { display: none; }
@@ -91,11 +85,10 @@
     .tabs { margin-bottom: 1rem; }
     .tabs .tab { font-size: 0.78rem; padding: 0.4rem 0.9rem; }
     .select-all-label { font-size: 0.75rem; padding: 0.2rem 0.4rem; }
-    .pagination { gap: 0.3rem; }
-    .page-btn { padding: 0.3rem 0.5rem; font-size: 0.75rem; }
+    .pagination { gap: 0.25rem; }
+    .page-btn { padding: 0.3rem 0.5rem; font-size: 0.73rem; min-width: 28px; }
   }
 
-  /* ── Modal ── */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; align-items: center; justify-content: center; }
   .modal-overlay.open { display: flex; }
   .modal-box { background: var(--card-bg, #1e1e2e); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 1rem; padding: 1.5rem; max-width: 560px; width: 92%; max-height: 90vh; overflow-y: auto; }
@@ -123,6 +116,9 @@
   .batch-progress-box { background: var(--card-bg, #1e1e2e); border-radius: 1rem; padding: 2rem; text-align: center; max-width: 360px; width: 85%; }
   .batch-progress-box .spinner { font-size: 2.5rem; margin-bottom: 1rem; }
   .batch-progress-box .status { font-size: 0.9rem; color: var(--text-muted, #94a3b8); margin-top: 0.5rem; }
+
+  @keyframes fadeInList { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .group-section { animation: fadeInList 0.2s ease; }
 </style>
 
 <div class="max-w-6xl mx-auto px-4 py-6">
@@ -135,13 +131,12 @@
   </div>
 
   <div style="display:flex; gap:0.4rem; align-items:center; margin-bottom:0.65rem; flex-wrap:wrap;">
-    <label class="select-all-label"><input type="checkbox" onchange="toggleSelectAll(this)"> Select all on page</label>
+    <label class="select-all-label"><input type="checkbox" onchange="toggleSelectAll(this)"> <span id="select-all-text">Select all on page</span></label>
     <button class="btn btn-outline btn-xs" onclick="expandAll()">+ Expand all</button>
     <button class="btn btn-outline btn-xs" onclick="collapseAll()">− Collapse all</button>
     <span style="font-size:0.8rem; color:var(--text-muted,#94a3b8); margin-left:auto;" id="total-count"></span>
   </div>
 
-  <!-- Batch action bar -->
   <div class="batch-bar" id="batch-bar">
     <span class="count" id="sel-count">0 selected</span>
     <button class="btn btn-primary" onclick="batchIndex()"><i class="fa-solid fa-play"></i> Index</button>
@@ -154,7 +149,6 @@
   </div>
 </div>
 
-<!-- Retry modal -->
 <div class="modal-overlay" id="retry-modal">
   <div class="modal-box">
     <h3 class="text-lg font-bold mb-1">🔍 Search &amp; index</h3>
@@ -175,7 +169,6 @@
   </div>
 </div>
 
-<!-- Batch progress -->
 <div class="batch-progress" id="batch-progress">
   <div class="batch-progress-box">
     <div class="spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>
@@ -203,8 +196,6 @@ function switchTab(reason) {
   loadSkipped();
 }
 
-// ── Load & render ─────────────────────────────────────────────────────────
-
 async function loadSkipped() {
   const c = document.getElementById('skipped-list');
   c.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><br>Loading…</div>';
@@ -219,37 +210,44 @@ async function loadSkipped() {
 }
 
 function getPaginatedGroups(groups) {
-  if (!groups || !groups.length) return { pageGroups: [], totalPages: 0, totalItemsInPage: 0, itemStart: 0, itemEnd: 0 };
+  if (!groups || !groups.length) {
+    return { pageGroups: [], totalPages: 0, totalItemsInPage: 0, itemStart: 0, itemEnd: 0, totalItems: 0 };
+  }
+
   let count = 0;
   const pageGroups = [];
   let startIdx = -1, endIdx = -1;
-  let foundPage = false;
+  let found = false;
+  let totalItems = 0;
 
   for (const g of groups) {
-    if (foundPage) break;
-    const nextCount = count + g.entries.length;
-    const pageForGroup = Math.ceil(nextCount / pageSize);
-    const groupPageStart = Math.floor(count / pageSize) + 1;
-    const groupPageEnd = Math.ceil(nextCount / pageSize);
+    const groupStartPage = Math.floor(count / pageSize) + 1;
+    const groupEndPage = Math.ceil((count + g.entries.length) / pageSize);
 
-    if (currentPage >= groupPageStart && currentPage <= groupPageEnd) {
+    if (currentPage >= groupStartPage && currentPage <= groupEndPage) {
       pageGroups.push(g);
       if (startIdx === -1) startIdx = count;
       endIdx = count + g.entries.length - 1;
+      found = true;
+    } else if (found && groupStartPage > currentPage) {
+      totalItems = count + groups.reduce((s, g2) => s + g2.entries.length, 0) - count;
+      break;
     }
-    count = nextCount;
+
+    count += g.entries.length;
   }
 
-  const totalPages = Math.max(1, Math.ceil(count / pageSize));
+  totalItems = count;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   if (currentPage > totalPages) currentPage = totalPages;
 
   return {
     pageGroups,
     totalPages,
-    totalItemsInPage: endIdx - startIdx + 1,
-    itemStart: startIdx + 1,
-    itemEnd: endIdx + 1,
-    totalItems: count,
+    totalItemsInPage: pageGroups.length ? endIdx - startIdx + 1 : 0,
+    itemStart: pageGroups.length ? startIdx + 1 : 0,
+    itemEnd: pageGroups.length ? endIdx + 1 : 0,
+    totalItems,
   };
 }
 
@@ -325,8 +323,11 @@ function renderGroups(groups, entries) {
     </div>`;
   }
 
-  html += renderPagination(info);
+  if (!info.pageGroups.length) {
+    html += `<div class="empty-state" style="padding:1.5rem;"><i class="fa-solid fa-file-circle-exclamation"></i><br>This page is empty. Try another page.</div>`;
+  }
 
+  html += renderPagination(info);
   c.innerHTML = html;
   resetSelectAllCheckbox();
   updBar();
@@ -351,17 +352,20 @@ function collapseAll() {
   document.querySelectorAll('.arrow').forEach(a => a.classList.remove('open'));
 }
 
-// ── Pagination ─────────────────────────────────────────────────────────────
-
 function goToPage(page) {
+  if (page < 1) return;
   currentPage = page;
-  const c = document.getElementById('skipped-list');
-  renderGroups(allGroups, allGroups.reduce((acc, g) => acc.concat(g.entries), []));
-  c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const entries = allGroups.reduce((acc, g) => { acc.push(...g.entries); return acc; }, []);
+  renderGroups(allGroups, entries);
+  const el = document.querySelector('.tool-card');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderPagination(info) {
-  if (info.totalPages <= 1 && info.totalItems <= pageSize) return '';
+  if (info.totalPages <= 1) return '';
+
+  const prevDisabled = currentPage <= 1;
+  const nextDisabled = currentPage >= info.totalPages;
 
   let sizeOpts = '';
   for (const s of PAGE_SIZES) {
@@ -370,31 +374,34 @@ function renderPagination(info) {
 
   let html = '<div class="pagination">';
 
-  html += `<button class="page-btn" onclick="goToPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>← Prev</button>`;
+  html += `<button class="page-btn" onclick="goToPage(${currentPage - 1})" ${prevDisabled ? 'disabled' : ''} aria-label="Previous page">← Prev</button>`;
 
   const maxVisible = 5;
-  const startP = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-  const endP = Math.min(info.totalPages, startP + maxVisible - 1);
-  const adjStart = Math.max(1, endP - maxVisible + 1);
-
-  if (adjStart > 1) {
-    html += `<button class="page-btn" onclick="goToPage(1)">1</button>`;
-    if (adjStart > 2) html += `<span class="page-info">…</span>`;
+  const half = Math.floor(maxVisible / 2);
+  let startP = Math.max(1, currentPage - half);
+  let endP = Math.min(info.totalPages, startP + maxVisible - 1);
+  if (endP - startP + 1 < maxVisible) {
+    startP = Math.max(1, endP - maxVisible + 1);
   }
 
-  for (let p = adjStart; p <= endP; p++) {
-    html += `<button class="page-btn${p === currentPage ? ' active' : ''}" onclick="goToPage(${p})">${p}</button>`;
+  if (startP > 1) {
+    html += `<button class="page-btn" onclick="goToPage(1)" aria-label="Page 1">1</button>`;
+    if (startP > 2) html += `<span class="page-info">…</span>`;
+  }
+
+  for (let p = startP; p <= endP; p++) {
+    html += `<button class="page-btn${p === currentPage ? ' active' : ''}" onclick="goToPage(${p})" aria-label="Page ${p}">${p}</button>`;
   }
 
   if (endP < info.totalPages) {
     if (endP < info.totalPages - 1) html += `<span class="page-info">…</span>`;
-    html += `<button class="page-btn" onclick="goToPage(${info.totalPages})">${info.totalPages}</button>`;
+    html += `<button class="page-btn" onclick="goToPage(${info.totalPages})" aria-label="Page ${info.totalPages}">${info.totalPages}</button>`;
   }
 
-  html += `<button class="page-btn" onclick="goToPage(${currentPage + 1})" ${currentPage >= info.totalPages ? 'disabled' : ''}>Next →</button>`;
+  html += `<button class="page-btn" onclick="goToPage(${currentPage + 1})" ${nextDisabled ? 'disabled' : ''} aria-label="Next page">Next →</button>`;
 
   html += `<span class="page-info">${info.itemStart}–${info.itemEnd} of ${info.totalItems}</span>`;
-  html += `<select class="page-size-select" onchange="changePageSize(this.value)">${sizeOpts}</select>`;
+  html += `<select class="page-size-select" onchange="changePageSize(this.value)" aria-label="Items per page">${sizeOpts}</select>`;
 
   html += '</div>';
   return html;
@@ -403,10 +410,9 @@ function renderPagination(info) {
 function changePageSize(val) {
   pageSize = Number(val);
   currentPage = 1;
-  renderGroups(allGroups, allGroups.reduce((acc, g) => acc.concat(g.entries), []));
+  const entries = allGroups.reduce((acc, g) => { acc.push(...g.entries); return acc; }, []);
+  renderGroups(allGroups, entries);
 }
-
-// ── Selection ──────────────────────────────────────────────────────────────
 
 function getSel() {
   const r = [];
@@ -443,13 +449,27 @@ function updBar() {
   const sel = getSel();
   const n = sel.length;
   const bar = document.getElementById('batch-bar');
-  const totalOnPage = document.querySelectorAll('#skipped-list input[type=checkbox][data-ch]').length;
-  document.getElementById('sel-count').textContent = n + ' selected' + (totalOnPage > 0 ? ` (of ${totalOnPage} on page)` : '');
+  const checkboxes = document.querySelectorAll('#skipped-list input[type=checkbox][data-ch]');
+  const totalOnPage = checkboxes.length;
+  const label = document.getElementById('sel-count');
+
+  if (n > 0) {
+    label.textContent = n + ' selected' + (totalOnPage > 0 ? ` (of ${totalOnPage})` : '');
+  } else {
+    label.textContent = '0 selected';
+  }
   bar.classList.toggle('show', n > 0);
 
   const selAllCb = document.querySelector('.select-all-label input');
   if (selAllCb) {
     selAllCb.checked = n > 0 && n === totalOnPage;
+  }
+
+  const selAllText = document.getElementById('select-all-text');
+  if (selAllText) {
+    selAllText.textContent = totalOnPage > 0
+      ? `Select all ${totalOnPage} on page`
+      : 'Select all on page';
   }
 }
 
@@ -458,8 +478,6 @@ function clearSelection() {
   resetSelectAllCheckbox();
   updBar();
 }
-
-// ── Group-aware index ──────────────────────────────────────────────────────
 
 function openRetryFromGroup(baseName, entry, hint) {
   const grp = allGroups.find(g => g.base === baseName);
@@ -551,8 +569,6 @@ async function confirmRetry() {
   loadSkipped();
 }
 
-// ── Dismiss with Telegram delete ───────────────────────────────────────────
-
 async function batchDismiss() {
   const sel = getSel();
   if (!sel.length) return;
@@ -592,8 +608,6 @@ async function dismiss(ch, id) {
   }
 }
 
-// ── Batch progress ─────────────────────────────────────────────────────────
-
 function showBatchProg(label, status) {
   document.getElementById('batch-progress-label').textContent = label;
   document.getElementById('batch-progress-status').textContent = status;
@@ -606,8 +620,6 @@ function updBatchProg(status) {
 function hideBatchProg() {
   document.getElementById('batch-progress').classList.remove('open');
 }
-
-// ── Search ─────────────────────────────────────────────────────────────────
 
 function searchDebounced() {
   clearTimeout(searchTimer);
@@ -692,8 +704,6 @@ function pickResult(id, el) {
   document.getElementById('override-input').value = id;
 }
 
-// ── Utilities ──────────────────────────────────────────────────────────────
-
 function toast(msg, type) {
   const el = document.createElement('div');
   el.className = `toast toast-${type}`;
@@ -716,7 +726,6 @@ function esc(s) {
   return d.innerHTML;
 }
 
-// ── Init ───────────────────────────────────────────────────────────────────
 loadSkipped();
 document.addEventListener('keydown', e => { if (e.key === 'Escape') clearSelection(); });
 </script>
