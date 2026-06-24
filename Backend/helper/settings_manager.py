@@ -27,7 +27,6 @@ _DEFAULTS: Dict[str, Any] = {
     "extra_databases": [],
     "global_search": False,
     "global_search_channels": [],
-    "rename_captions": False,
 }
 
 
@@ -94,10 +93,6 @@ class Settings:
     @property
     def global_search_channels(self):
         return list(self._d.get("global_search_channels") or [])
-
-    @property
-    def rename_captions(self) -> bool:
-        return bool(self._d.get("rename_captions", False))
 
     # ── Strings ──────────────────────────────────────────────────────────────
     @property

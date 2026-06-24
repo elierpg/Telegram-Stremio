@@ -153,33 +153,6 @@ def get_readable_time(seconds: int) -> str:
     return readable_time
 
 
-def format_caption(meta: dict) -> str:
-    t = meta.get("title", "") or ""
-    q = meta.get("quality", "") or ""
-    y = meta.get("year", "") or ""
-    if meta.get("media_type") == "tv":
-        s = meta.get("season_number")
-        e = meta.get("episode_number")
-        et = (meta.get("episode_title", "") or "").strip()
-        parts = [t]
-        if s is not None and e is not None:
-            parts.append(f"S{int(s):02d}E{int(e):02d}")
-        if et and et != t:
-            parts.append(et)
-        if y:
-            parts.append(f"({y})")
-        if q:
-            parts.append(f"[{q}]")
-        return " - ".join(parts)
-    else:
-        parts = [t]
-        if y:
-            parts.append(f"({y})")
-        if q:
-            parts.append(f"[{q}]")
-        return " - ".join(parts)
-
-
 def remove_urls(text):
     if not text:
         return ""

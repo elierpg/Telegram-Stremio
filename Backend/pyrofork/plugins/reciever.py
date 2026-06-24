@@ -4,7 +4,7 @@ from Backend.helper.task_manager import edit_message
 from Backend.logger import LOGGER
 from Backend import db
 from Backend.helper.settings_manager import SettingsManager
-from Backend.helper.pyro import clean_filename, get_readable_file_size, remove_urls, format_caption
+from Backend.helper.pyro import clean_filename, get_readable_file_size, remove_urls
 from Backend.helper.metadata import metadata
 from pyrogram import filters, Client
 from pyrogram.types import Message
@@ -75,13 +75,8 @@ async def file_receive_handler(client: Client, message: Message):
                 if not title.endswith(('.mkv', '.mp4')):
                     title += '.mkv'
 
-                if SettingsManager.current().rename_captions or Backend.USE_DEFAULT_ID:
-                    if SettingsManager.current().rename_captions:
-                        new_caption = format_caption(metadata_info)
-                    else:
-                        new_caption = caption_text
-                    if Backend.USE_DEFAULT_ID:
-                        new_caption = (new_caption + "\n\n" + Backend.USE_DEFAULT_ID) if new_caption else Backend.USE_DEFAULT_ID
+                if Backend.USE_DEFAULT_ID:
+                    new_caption = (caption_text + "\n\n" + Backend.USE_DEFAULT_ID) if caption_text else Backend.USE_DEFAULT_ID
                     create_task(edit_message(
                         chat_id=message.chat.id,
                         msg_id=message.id,
@@ -137,13 +132,6 @@ async def file_edited_handler(client: Client, message: Message):
                         title = strip_part_suffix(title)
                     if not title.endswith(('.mkv', '.mp4')):
                         title += '.mkv'
-
-                    if SettingsManager.current().rename_captions:
-                        create_task(edit_message(
-                            chat_id=message.chat.id,
-                            msg_id=message.id,
-                            new_caption=format_caption(metadata_info),
-                        ))
 
                     await file_queue.put((metadata_info, int(channel), msg_id, size, raw_size, title))
             else:
