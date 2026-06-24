@@ -71,11 +71,6 @@
     <label for="search-input">Search</label>
     <input id="search-input" type="text" placeholder="Search title…" autocomplete="off" oninput="searchDebounced()">
 
-    <div class="search-type-toggle">
-      <button class="active" data-type="tv" onclick="setSearchType('tv')">📺 TV</button>
-      <button data-type="movie" onclick="setSearchType('movie')">🎬 Movie</button>
-    </div>
-
     <div id="search-results" style="margin-bottom: 0.75rem; min-height: 0;">
       <div class="empty-state" style="padding:1rem;font-size:0.85rem;"><i class="fa-solid fa-search" style="font-size:1.5rem;"></i><br>Type to search…</div>
     </div>
@@ -95,7 +90,6 @@
 <script>
 let currentReason = 'meta';
 let retryTarget = null;
-let searchType = 'tv';
 let searchTimer = null;
 
 function switchTab(reason) {
@@ -157,31 +151,56 @@ function renderSkipped(entries) {
   container.innerHTML = html;
 }
 
-function setSearchType(type) {
-  searchType = type;
-  document.querySelectorAll('.search-type-toggle button').forEach(b => {
-    b.classList.toggle('active', b.dataset.type === type);
-  });
-  doSearch();
-}
-
 function searchDebounced() {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(doSearch, 300);
 }
 
+function cleanQuery(raw) {
+  let q = raw.trim();
+  // remove file extension
+  q = q.replace(/\.(mkv|mp4|avi|mov|m4v|wmv|flv|ts)$/i, '');
+  // replace dots, underscores, hyphens with spaces
+  q = q.replace(/[._\-]+/g, ' ');
+  // remove common noise words (resolution, codec, source, release group)
+  q = q.replace(/\b(720p|1080p|2160p|480p|360p|4k|uhd|x264|x265|h264|h265|hevc|bluray|web.?dl|web|dvdrip|brrip|hdrip|hdtv|aac|ac3|ddp|dd5|dts|mp3|pahe\.?in|yts|rarbg|ettv|eztv|mkv|cinecalidad|hdfull|compuhost|pablo)\b/gi, '');
+  // remove year (but keep it — TMDb handles years in query fine)
+  // collapse spaces
+  q = q.replace(/\s+/g, ' ').trim();
+  return q;
+}
+
 async function doSearch() {
-  const q = document.getElementById('search-input').value.trim();
+  const raw = document.getElementById('search-input').value.trim();
+  const q = cleanQuery(raw);
   const container = document.getElementById('search-results');
-  if (!q) {
+  if (!q || !raw) {
     container.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:0.85rem;"><i class="fa-solid fa-search" style="font-size:1.5rem;"></i><br>Type to search…</div>';
     return;
   }
   container.innerHTML = '<div class="empty-state" style="padding:1rem;"><i class="fa-solid fa-spinner fa-spin"></i><br>Searching…</div>';
+
+  // search both movie and TV, merge results
   try {
-    const resp = await fetch(`/api/media/rescan/search?media_type=${searchType}&query=${encodeURIComponent(q)}`);
-    const json = await resp.json();
-    renderSearchResults(json.results || []);
+    const [movieResp, tvResp] = await Promise.all([
+      fetch(`/api/media/rescan/search?media_type=movie&query=${encodeURIComponent(q)}`),
+      fetch(`/api/media/rescan/search?media_type=tv&query=${encodeURIComponent(q)}`),
+    ]);
+    const movieJson = await movieResp.json();
+    const tvJson = await tvResp.json();
+    const movieResults = (movieJson.results || []).map(r => ({ ...r, _media_type: 'movie' }));
+    const tvResults = (tvJson.results || []).map(r => ({ ...r, _media_type: 'tv' }));
+    const all = [...movieResults, ...tvResults];
+    // deduplicate by tmdb_id
+    const seen = new Set();
+    const merged = [];
+    for (const r of all) {
+      const key = r.tmdb_id || r.imdb_id || r.title;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(r);
+    }
+    renderSearchResults(merged);
   } catch (e) {
     container.innerHTML = `<div class="empty-state" style="padding:1rem;color:#ef4444;font-size:0.85rem;"><i class="fa-solid fa-exclamation-triangle"></i><br>${esc(e.message)}</div>`;
   }
@@ -199,11 +218,12 @@ function renderSearchResults(results) {
     const title = r.title || '?';
     const year = r.year || '';
     const overrideId = r.tmdb_id || r.imdb_id || '';
+    const mediaLabel = r._media_type === 'movie' ? '🎬 Movie' : '📺 TV';
     html += `<div class="search-result" onclick="selectResult('${overrideId}', this)">
       ${poster ? `<img src="${esc(poster)}" alt="" loading="lazy">` : '<div style="width:40px;height:56px;border-radius:0.4rem;background:var(--border-color,rgba(255,255,255,0.08));flex-shrink:0;"></div>'}
       <div class="info">
         <div class="title">${esc(title)}</div>
-        <div class="meta">${searchType === 'movie' ? '🎬 Movie' : '📺 TV'}${year ? ' · ' + year : ''}</div>
+        <div class="meta">${mediaLabel}${year ? ' · ' + year : ''}</div>
       </div>
       <i class="fa-solid fa-check" style="color:#22c55e;display:none;"></i>
     </div>`;
@@ -226,10 +246,11 @@ function selectResult(id, el) {
 function openRetry(channel, msgId, fileName) {
   retryTarget = { channel, msgId };
   document.getElementById('override-input').value = '';
-  document.getElementById('search-input').value = fileName || '';
+  const cleaned = cleanQuery(fileName || '');
+  document.getElementById('search-input').value = cleaned || fileName || '';
   document.getElementById('search-results').innerHTML = '<div class="empty-state" style="padding:1rem;"><i class="fa-solid fa-spinner fa-spin"></i><br>Searching…</div>';
   document.getElementById('retry-modal').classList.add('open');
-  if (fileName && fileName.trim()) {
+  if (cleaned || fileName) {
     setTimeout(() => doSearch(), 100);
   }
 }
