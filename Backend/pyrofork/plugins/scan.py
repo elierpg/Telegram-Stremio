@@ -15,36 +15,28 @@ def _format_status() -> str:
     s = scan_manager.get_status()
     c = s["counters"]
 
-    lines = [
-        f"<b>📡 Scan {'Running' if s['is_running'] else s['status'].title()}</b>",
-        f"",
-        f"Mode: <code>{s['mode']}</code>",
-        f"Elapsed: <code>{s['elapsed']}</code>",
-        f"",
-        f"<b>Counters</b>",
-        f"  Total found:      <code>{c['total_found']}</code>",
-        f"  Processed:        <code>{c['processed']}</code>",
-        f"  Indexed:          <code>{c['indexed']}</code>",
-        f"  Skipped dup:      <code>{c['skipped_dup']}</code>",
-        f"  Skipped meta:     <code>{c['skipped_meta']}</code>",
-        f"  Skipped non-video:<code>{c['skipped_nonvid']}</code>",
-        f"  Errors:           <code>{c['errors']}</code>",
-    ]
+    icon = "🔄" if s["is_running"] else {"completed": "✅", "cancelled": "⏹", "error": "❌"}.get(s["status"], "")
+    label = "Running" if s["is_running"] else {"completed": "Complete", "cancelled": "Cancelled", "error": "Failed"}.get(s["status"], s["status"].title())
+
+    lines = [f"📡 Scan {icon} {label}", ""]
 
     if s["current_channel_name"]:
-        lines.append(f"\nChannel: <code>{s['current_channel_name']}</code>")
-    lines.append(f"Pending: <code>{len(s['pending'])}</code>")
+        lines.append(f"📺 Channel: <code>{s['current_channel_name']}</code>")
+
+    lines.append(f"⏱ Duration: <code>{s['elapsed']}</code>")
+    lines.append(f"📨 Total messages seen: <code>{c['total_found']}</code>")
+    lines.append(f"✅ Newly indexed: <code>{c['indexed']}</code>")
+    lines.append(f"⏭ Skipped (already in DB): <code>{c['processed']}</code>")
+    lines.append(f"⚠️ Skipped (metadata fail): <code>{c['skipped_meta']}</code>")
+    lines.append(f"📎 Skipped (non-video): <code>{c['skipped_nonvid']}</code>")
+    lines.append(f"🧹 Duplicates removed: <code>{c['skipped_dup']}</code>")
+    lines.append(f"❌ Errors: <code>{c['errors']}</code>")
+
+    if s["pending"]:
+        lines.append(f"\n⏳ Pending: <code>{len(s['pending'])}</code>")
 
     if s["error"]:
-        lines.append(f"\n❌ Error: <code>{s['error']}</code>")
-
-    if not s["is_running"]:
-        if s["status"] == "completed":
-            lines.append(f"\n✅ Scan completed!")
-        elif s["status"] == "cancelled":
-            lines.append(f"\n⏹ Scan cancelled.")
-        elif s["status"] == "error":
-            lines.append(f"\n❌ Scan failed.")
+        lines.append(f"\n❌ <code>{s['error']}</code>")
 
     return "\n".join(lines)
 
