@@ -602,14 +602,21 @@ class ScanManager:
     # ── Telegram helpers ─────────────────────────────────────────────────────
 
     async def delete_telegram_message(self, client, channel: int, msg_id: int) -> bool:
-        """Delete a message from the Telegram channel."""
+        """Delete a message from the Telegram channel (uses Userbot fallback)."""
+        from Backend.pyrofork.bot import Userbot
+        chat_id = int(f"-100{channel}")
         try:
-            chat_id = int(f"-100{channel}")
             await client.delete_messages(chat_id, [msg_id])
             return True
-        except Exception as e:
-            LOGGER.warning(f"[ScanManager] Could not delete Telegram msg {channel}/{msg_id}: {e}")
-            return False
+        except Exception:
+            LOGGER.warning(f"[ScanManager] StreamBot could not delete msg {channel}/{msg_id} — trying Userbot")
+        if Userbot is not None:
+            try:
+                await Userbot.delete_messages(chat_id, [msg_id])
+                return True
+            except Exception as ue:
+                LOGGER.warning(f"[ScanManager] Userbot also could not delete msg {channel}/{msg_id}: {ue}")
+        return False
 
     # ── Purge (rescan helper) ────────────────────────────────────────────────
     async def _purge_channel_entries(self, channel_int: int) -> int:
