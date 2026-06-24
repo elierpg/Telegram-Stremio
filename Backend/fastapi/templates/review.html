@@ -50,7 +50,23 @@
 
   /* ── Mobile cards (hidden by default) ── */
   .skip-cards { display: none; }
-  .group-chk-all { display: none; }
+  .group-chk-all { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.1rem 0.35rem 2.2rem; font-size: 0.78rem; color: var(--text-muted, #94a3b8); cursor: pointer; }
+  .group-chk-all input { width: 16px; height: 16px; accent-color: var(--primary, #6366f1); cursor: pointer; margin: 0; }
+  .group-chk-all:hover { color: var(--primary, #6366f1); }
+
+  /* ── Select-all on page ── */
+  .select-all-label { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-muted, #94a3b8); cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.4rem; border: 1px solid var(--border-color, rgba(255,255,255,0.1)); user-select: none; }
+  .select-all-label:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
+  .select-all-label input { width: 16px; height: 16px; accent-color: var(--primary, #6366f1); cursor: pointer; margin: 0; }
+
+  /* ── Pagination ── */
+  .pagination { display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color, rgba(255,255,255,0.06)); flex-wrap: wrap; }
+  .page-btn { padding: 0.35rem 0.75rem; border-radius: 0.4rem; border: 1px solid var(--border-color, rgba(255,255,255,0.12)); background: transparent; color: var(--text-muted, #94a3b8); cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.15s; }
+  .page-btn:hover:not(:disabled) { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
+  .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .page-btn.active { background: var(--primary, #6366f1); color: #fff; border-color: var(--primary, #6366f1); }
+  .page-info { font-size: 0.8rem; color: var(--text-muted, #94a3b8); padding: 0 0.5rem; white-space: nowrap; }
+  .page-size-select { background: transparent; border: 1px solid var(--border-color, rgba(255,255,255,0.12)); color: var(--text-muted, #94a3b8); padding: 0.3rem 0.4rem; border-radius: 0.4rem; font-size: 0.75rem; cursor: pointer; }
 
   @media (max-width: 640px) {
     .skip-table { display: none; }
@@ -64,22 +80,19 @@
     .skip-card-actions { display: flex; gap: 0.35rem; margin-top: 0.45rem; margin-left: 2rem; }
     .skip-card-actions .btn { font-size: 0.72rem; padding: 0.3rem 0.55rem; }
 
-    /* Group header mobile */
     .group-hdr { padding: 0.45rem 0.55rem; }
     .group-hdr .gtitle { font-size: 0.82rem; }
+    .group-chk-all { padding: 0.35rem 0.1rem 0.35rem 2.2rem; font-size: 0.75rem; }
 
-    /* Group - select all row */
-    .group-chk-all { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.1rem 0.35rem 2.2rem; font-size: 0.75rem; color: var(--text-muted, #94a3b8); cursor: pointer; }
-    .group-chk-all input { width: 18px; height: 18px; accent-color: var(--primary, #6366f1); cursor: pointer; margin: 0; }
-    .group-chk-all:hover { color: var(--primary, #6366f1); }
-
-    /* Fixed bottom batch bar on mobile */
     .batch-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; border-radius: 0; margin: 0; padding: 0.7rem 0.85rem; background: rgba(20,20,30,0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(99,102,241,0.3); border-left: none; border-right: none; border-bottom: none; }
     .batch-bar .count { font-size: 0.85rem; }
     .batch-bar .btn { padding: 0.5rem 0.75rem; font-size: 0.8rem; border-radius: 0.5rem; }
     .tool-card { margin-bottom: 5rem; padding: 0.75rem; }
     .tabs { margin-bottom: 1rem; }
     .tabs .tab { font-size: 0.78rem; padding: 0.4rem 0.9rem; }
+    .select-all-label { font-size: 0.75rem; padding: 0.2rem 0.4rem; }
+    .pagination { gap: 0.3rem; }
+    .page-btn { padding: 0.3rem 0.5rem; font-size: 0.75rem; }
   }
 
   /* ── Modal ── */
@@ -122,6 +135,7 @@
   </div>
 
   <div style="display:flex; gap:0.4rem; align-items:center; margin-bottom:0.65rem; flex-wrap:wrap;">
+    <label class="select-all-label"><input type="checkbox" onchange="toggleSelectAll(this)"> Select all on page</label>
     <button class="btn btn-outline btn-xs" onclick="expandAll()">+ Expand all</button>
     <button class="btn btn-outline btn-xs" onclick="collapseAll()">− Collapse all</button>
     <span style="font-size:0.8rem; color:var(--text-muted,#94a3b8); margin-left:auto;" id="total-count"></span>
@@ -175,6 +189,9 @@ let currentReason = 'meta';
 let retryTarget = null;
 let searchTimer = null;
 let allGroups = [];
+let currentPage = 1;
+const PAGE_SIZES = [25, 50, 100];
+let pageSize = 50;
 
 function switchTab(reason) {
   currentReason = reason;
@@ -182,6 +199,7 @@ function switchTab(reason) {
     t.classList.toggle('tab-active', t.dataset.tab === reason);
     t.classList.toggle('tab-inactive', t.dataset.tab !== reason);
   });
+  currentPage = 1;
   loadSkipped();
 }
 
@@ -200,17 +218,54 @@ async function loadSkipped() {
   }
 }
 
+function getPaginatedGroups(groups) {
+  if (!groups || !groups.length) return { pageGroups: [], totalPages: 0, totalItemsInPage: 0, itemStart: 0, itemEnd: 0 };
+  let count = 0;
+  const pageGroups = [];
+  let startIdx = -1, endIdx = -1;
+  let foundPage = false;
+
+  for (const g of groups) {
+    if (foundPage) break;
+    const nextCount = count + g.entries.length;
+    const pageForGroup = Math.ceil(nextCount / pageSize);
+    const groupPageStart = Math.floor(count / pageSize) + 1;
+    const groupPageEnd = Math.ceil(nextCount / pageSize);
+
+    if (currentPage >= groupPageStart && currentPage <= groupPageEnd) {
+      pageGroups.push(g);
+      if (startIdx === -1) startIdx = count;
+      endIdx = count + g.entries.length - 1;
+    }
+    count = nextCount;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(count / pageSize));
+  if (currentPage > totalPages) currentPage = totalPages;
+
+  return {
+    pageGroups,
+    totalPages,
+    totalItemsInPage: endIdx - startIdx + 1,
+    itemStart: startIdx + 1,
+    itemEnd: endIdx + 1,
+    totalItems: count,
+  };
+}
+
 function renderGroups(groups, entries) {
   const c = document.getElementById('skipped-list');
-  document.getElementById('total-count').textContent = entries.length + ' file' + (entries.length !== 1 ? 's' : '');
-  if (!entries || !entries.length) {
+  const totalItems = entries ? entries.length : 0;
+  document.getElementById('total-count').textContent = totalItems + ' file' + (totalItems !== 1 ? 's' : '');
+  if (!totalItems) {
     c.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color:#22c55e;"></i><br>No skipped files in this category.</div>';
     return;
   }
   allGroups = groups;
+  const info = getPaginatedGroups(groups);
   let html = '';
 
-  for (const g of groups) {
+  for (const g of info.pageGroups) {
     const base = esc(g.base !== '_ungrouped' ? g.base : '(miscellaneous)');
     let trs = '', cards = '';
 
@@ -270,7 +325,10 @@ function renderGroups(groups, entries) {
     </div>`;
   }
 
+  html += renderPagination(info);
+
   c.innerHTML = html;
+  resetSelectAllCheckbox();
   updBar();
 }
 
@@ -291,6 +349,61 @@ function expandAll() {
 function collapseAll() {
   document.querySelectorAll('.group-body').forEach(b => b.style.display = 'none');
   document.querySelectorAll('.arrow').forEach(a => a.classList.remove('open'));
+}
+
+// ── Pagination ─────────────────────────────────────────────────────────────
+
+function goToPage(page) {
+  currentPage = page;
+  const c = document.getElementById('skipped-list');
+  renderGroups(allGroups, allGroups.reduce((acc, g) => acc.concat(g.entries), []));
+  c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderPagination(info) {
+  if (info.totalPages <= 1 && info.totalItems <= pageSize) return '';
+
+  let sizeOpts = '';
+  for (const s of PAGE_SIZES) {
+    sizeOpts += `<option value="${s}"${s === pageSize ? ' selected' : ''}>${s}</option>`;
+  }
+
+  let html = '<div class="pagination">';
+
+  html += `<button class="page-btn" onclick="goToPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>← Prev</button>`;
+
+  const maxVisible = 5;
+  const startP = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  const endP = Math.min(info.totalPages, startP + maxVisible - 1);
+  const adjStart = Math.max(1, endP - maxVisible + 1);
+
+  if (adjStart > 1) {
+    html += `<button class="page-btn" onclick="goToPage(1)">1</button>`;
+    if (adjStart > 2) html += `<span class="page-info">…</span>`;
+  }
+
+  for (let p = adjStart; p <= endP; p++) {
+    html += `<button class="page-btn${p === currentPage ? ' active' : ''}" onclick="goToPage(${p})">${p}</button>`;
+  }
+
+  if (endP < info.totalPages) {
+    if (endP < info.totalPages - 1) html += `<span class="page-info">…</span>`;
+    html += `<button class="page-btn" onclick="goToPage(${info.totalPages})">${info.totalPages}</button>`;
+  }
+
+  html += `<button class="page-btn" onclick="goToPage(${currentPage + 1})" ${currentPage >= info.totalPages ? 'disabled' : ''}>Next →</button>`;
+
+  html += `<span class="page-info">${info.itemStart}–${info.itemEnd} of ${info.totalItems}</span>`;
+  html += `<select class="page-size-select" onchange="changePageSize(this.value)">${sizeOpts}</select>`;
+
+  html += '</div>';
+  return html;
+}
+
+function changePageSize(val) {
+  pageSize = Number(val);
+  currentPage = 1;
+  renderGroups(allGroups, allGroups.reduce((acc, g) => acc.concat(g.entries), []));
 }
 
 // ── Selection ──────────────────────────────────────────────────────────────
@@ -315,15 +428,34 @@ function togGroupSel(cb, baseName) {
   updBar();
 }
 
+function toggleSelectAll(cb) {
+  const checked = cb.checked;
+  document.querySelectorAll('#skipped-list input[type=checkbox][data-ch]').forEach(c => c.checked = checked);
+  updBar();
+}
+
+function resetSelectAllCheckbox() {
+  const cb = document.querySelector('.select-all-label input');
+  if (cb) cb.checked = false;
+}
+
 function updBar() {
-  const n = getSel().length;
+  const sel = getSel();
+  const n = sel.length;
   const bar = document.getElementById('batch-bar');
-  document.getElementById('sel-count').textContent = n + ' selected';
+  const totalOnPage = document.querySelectorAll('#skipped-list input[type=checkbox][data-ch]').length;
+  document.getElementById('sel-count').textContent = n + ' selected' + (totalOnPage > 0 ? ` (of ${totalOnPage} on page)` : '');
   bar.classList.toggle('show', n > 0);
+
+  const selAllCb = document.querySelector('.select-all-label input');
+  if (selAllCb) {
+    selAllCb.checked = n > 0 && n === totalOnPage;
+  }
 }
 
 function clearSelection() {
   document.querySelectorAll('#skipped-list input[type=checkbox][data-ch]').forEach(cb => cb.checked = false);
+  resetSelectAllCheckbox();
   updBar();
 }
 
