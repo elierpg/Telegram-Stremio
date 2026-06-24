@@ -27,9 +27,19 @@
   .btn-outline:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; align-items: center; justify-content: center; }
   .modal-overlay.open { display: flex; }
-  .modal-box { background: var(--card-bg, #1e1e2e); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 1rem; padding: 2rem; max-width: 480px; width: 90%; }
-  .modal-box input, .modal-box select { width: 100%; padding: 0.6rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(0,0,0,0.2); color: inherit; margin-bottom: 0.75rem; font-size: 0.9rem; }
+  .modal-box { background: var(--card-bg, #1e1e2e); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 1rem; padding: 2rem; max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto; }
+  .modal-box input, .modal-box select { width: 100%; padding: 0.6rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(0,0,0,0.2); color: inherit; margin-bottom: 0.5rem; font-size: 0.9rem; }
   .modal-box label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted, #94a3b8); margin-bottom: 0.25rem; display: block; }
+  .search-type-toggle { display: flex; gap: 0.4rem; margin: 0.5rem 0 0.75rem; }
+  .search-type-toggle button { padding: 0.3rem 0.8rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: transparent; color: var(--text-muted, #94a3b8); cursor: pointer; transition: all 0.15s; }
+  .search-type-toggle button.active { background: var(--primary, #6366f1); color: #fff; border-color: var(--primary, #6366f1); }
+  .search-result { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.75rem; border-radius: 0.6rem; border: 1px solid var(--border-color, rgba(255,255,255,0.08)); margin-bottom: 0.4rem; cursor: pointer; transition: all 0.15s; }
+  .search-result:hover { border-color: var(--primary, #6366f1); background: rgba(99,102,241,0.08); }
+  .search-result.selected { border-color: #22c55e; background: rgba(34,197,94,0.08); }
+  .search-result img { width: 40px; height: 56px; object-fit: cover; border-radius: 0.4rem; flex-shrink: 0; }
+  .search-result .info { flex: 1; min-width: 0; }
+  .search-result .info .title { font-weight: 600; font-size: 0.9rem; }
+  .search-result .info .meta { font-size: 0.75rem; color: var(--text-muted, #94a3b8); }
   .toast { position: fixed; bottom: 2rem; right: 2rem; padding: 0.75rem 1.5rem; border-radius: 0.75rem; color: #fff; font-weight: 600; z-index: 9999; animation: fadeInUp 0.3s ease; cursor: pointer; }
   .toast-success { background: #22c55e; }
   .toast-error { background: #ef4444; }
@@ -53,15 +63,31 @@
 <!-- Retry modal -->
 <div class="modal-overlay" id="retry-modal">
   <div class="modal-box">
-    <h3 class="text-lg font-bold mb-1">Re-index with metadata override</h3>
-    <p class="text-xs" style="color: var(--text-muted, #94a3b8); margin-bottom: 1rem;">
-      Optionally provide an IMDb ID (tt1234567) or TMDb ID (numeric) to force metadata.
+    <h3 class="text-lg font-bold mb-1">📺 Search &amp; index</h3>
+    <p class="text-xs" style="color: var(--text-muted, #94a3b8); margin-bottom: 0.75rem;">
+      Search for the correct title, then click a result to index. Or enter an IMDb/TMDb ID manually.
     </p>
-    <label for="override-input">Override ID (optional)</label>
+
+    <label for="search-input">Search</label>
+    <input id="search-input" type="text" placeholder="Search title…" autocomplete="off" oninput="searchDebounced()">
+
+    <div class="search-type-toggle">
+      <button class="active" data-type="tv" onclick="setSearchType('tv')">📺 TV</button>
+      <button data-type="movie" onclick="setSearchType('movie')">🎬 Movie</button>
+    </div>
+
+    <div id="search-results" style="margin-bottom: 0.75rem; min-height: 0;">
+      <div class="empty-state" style="padding:1rem;font-size:0.85rem;"><i class="fa-solid fa-search" style="font-size:1.5rem;"></i><br>Type to search…</div>
+    </div>
+
+    <hr style="border-color: var(--border-color, rgba(255,255,255,0.08)); margin: 0.5rem 0;">
+
+    <label for="override-input">Or enter IMDb / TMDb ID</label>
     <input id="override-input" type="text" placeholder="e.g. tt0459666 or 2542" autocomplete="off">
-    <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem;">
+
+    <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.75rem;">
       <button class="btn-sm btn-outline" onclick="closeModal()">Cancel</button>
-      <button class="btn-sm btn-primary" id="retry-confirm" onclick="confirmRetry()">Index</button>
+      <button class="btn-sm btn-primary" id="retry-confirm" onclick="confirmRetry()">Index with ID</button>
     </div>
   </div>
 </div>
@@ -69,6 +95,8 @@
 <script>
 let currentReason = 'meta';
 let retryTarget = null;
+let searchType = 'tv';
+let searchTimer = null;
 
 function switchTab(reason) {
   currentReason = reason;
@@ -111,13 +139,14 @@ function renderSkipped(entries) {
     const fname = e.file_name || '(no name)';
     const cap = e.caption ? e.caption.substring(0, 60) : '';
     const sizeStr = e.file_size ? formatSize(e.file_size) : '—';
+    const fnameEsc = esc(fname);
     html += `<tr>
-      <td><div class="filename-cell" title="${esc(fname)}${cap ? ' — ' + esc(cap) : ''}">${esc(fname)}</div></td>
+      <td><div class="filename-cell" title="${fnameEsc}${cap ? ' — ' + esc(cap) : ''}">${fnameEsc}</div></td>
       <td><code>${esc(String(e.channel))}</code></td>
       <td><code>${e.msg_id}</code></td>
       <td>${sizeStr}</td>
       <td style="text-align:right; white-space:nowrap;">
-        <button class="btn-sm btn-primary" onclick="openRetry(${e.channel}, ${e.msg_id})"><i class="fa-solid fa-play"></i> Index</button>
+        <button class="btn-sm btn-primary" onclick="openRetry(${e.channel}, ${e.msg_id}, '${fnameEsc.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i> Index</button>
         <button class="btn-sm btn-danger" onclick="dismiss(${e.channel}, ${e.msg_id})"><i class="fa-solid fa-trash"></i></button>
       </td>
     </tr>`;
@@ -128,10 +157,81 @@ function renderSkipped(entries) {
   container.innerHTML = html;
 }
 
-function openRetry(channel, msgId) {
+function setSearchType(type) {
+  searchType = type;
+  document.querySelectorAll('.search-type-toggle button').forEach(b => {
+    b.classList.toggle('active', b.dataset.type === type);
+  });
+  doSearch();
+}
+
+function searchDebounced() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(doSearch, 300);
+}
+
+async function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  const container = document.getElementById('search-results');
+  if (!q) {
+    container.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:0.85rem;"><i class="fa-solid fa-search" style="font-size:1.5rem;"></i><br>Type to search…</div>';
+    return;
+  }
+  container.innerHTML = '<div class="empty-state" style="padding:1rem;"><i class="fa-solid fa-spinner fa-spin"></i><br>Searching…</div>';
+  try {
+    const resp = await fetch(`/api/media/rescan/search?media_type=${searchType}&query=${encodeURIComponent(q)}`);
+    const json = await resp.json();
+    renderSearchResults(json.results || []);
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state" style="padding:1rem;color:#ef4444;font-size:0.85rem;"><i class="fa-solid fa-exclamation-triangle"></i><br>${esc(e.message)}</div>`;
+  }
+}
+
+function renderSearchResults(results) {
+  const container = document.getElementById('search-results');
+  if (!results || results.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:0.85rem;"><i class="fa-solid fa-ban"></i><br>No results.</div>';
+    return;
+  }
+  let html = '';
+  for (const r of results) {
+    const poster = r.poster || '';
+    const title = r.title || '?';
+    const year = r.year || '';
+    const overrideId = r.tmdb_id || r.imdb_id || '';
+    html += `<div class="search-result" onclick="selectResult('${overrideId}', this)">
+      ${poster ? `<img src="${esc(poster)}" alt="" loading="lazy">` : '<div style="width:40px;height:56px;border-radius:0.4rem;background:var(--border-color,rgba(255,255,255,0.08));flex-shrink:0;"></div>'}
+      <div class="info">
+        <div class="title">${esc(title)}</div>
+        <div class="meta">${searchType === 'movie' ? '🎬 Movie' : '📺 TV'}${year ? ' · ' + year : ''}</div>
+      </div>
+      <i class="fa-solid fa-check" style="color:#22c55e;display:none;"></i>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+function selectResult(id, el) {
+  document.querySelectorAll('.search-result').forEach(r => {
+    r.classList.remove('selected');
+    const icon = r.querySelector('.fa-check');
+    if (icon) icon.style.display = 'none';
+  });
+  el.classList.add('selected');
+  const icon = el.querySelector('.fa-check');
+  if (icon) icon.style.display = 'block';
+  document.getElementById('override-input').value = id;
+}
+
+function openRetry(channel, msgId, fileName) {
   retryTarget = { channel, msgId };
   document.getElementById('override-input').value = '';
+  document.getElementById('search-input').value = fileName || '';
+  document.getElementById('search-results').innerHTML = '<div class="empty-state" style="padding:1rem;"><i class="fa-solid fa-spinner fa-spin"></i><br>Searching…</div>';
   document.getElementById('retry-modal').classList.add('open');
+  if (fileName && fileName.trim()) {
+    setTimeout(() => doSearch(), 100);
+  }
 }
 
 function closeModal() {
@@ -153,17 +253,17 @@ async function confirmRetry() {
     });
     const json = await resp.json();
     if (json.status === 'success') {
-      showToast('Indexed successfully!', 'success');
+      showToast('✅ Indexed successfully!', 'success');
       closeModal();
       loadSkipped();
     } else {
-      showToast(json.detail || 'Retry failed', 'error');
+      showToast('❌ ' + (json.detail || 'Retry failed'), 'error');
     }
   } catch (e) {
-    showToast('Network error: ' + e.message, 'error');
+    showToast('❌ Network error: ' + e.message, 'error');
   }
   btn.disabled = false;
-  btn.textContent = 'Index';
+  btn.textContent = 'Index with ID';
 }
 
 async function dismiss(channel, msgId) {
