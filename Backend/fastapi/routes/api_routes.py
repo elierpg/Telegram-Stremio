@@ -1187,8 +1187,6 @@ async def purge_dead_links_api(payload: dict | None = None) -> dict:
 
 async def get_skipped_files_api(reason: str = "meta", grouped: bool = Query(False)) -> dict:
     from Backend.helper.scan_manager import scan_manager
-    if reason not in ("meta", "nonvid"):
-        raise HTTPException(status_code=400, detail="reason must be 'meta' or 'nonvid'.")
     entries = scan_manager.get_skipped_files(reason)
     if grouped:
         groups = scan_manager.get_grouped_skipped(reason)
@@ -1217,8 +1215,6 @@ async def dismiss_skipped_api(
     delete_telegram: bool = Query(True),
 ) -> dict:
     from Backend.helper.scan_manager import scan_manager
-    if reason not in ("meta", "nonvid"):
-        raise HTTPException(status_code=400, detail="reason must be 'meta' or 'nonvid'.")
     telegram_deleted = False
     if delete_telegram:
         client = _scan_client()

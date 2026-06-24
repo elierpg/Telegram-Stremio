@@ -76,11 +76,9 @@ class ScanManager:
                 "indexed": 0,
                 "skipped_dup": 0,
                 "skipped_meta": 0,
-                "skipped_nonvid": 0,
-                "errors": 0,
+            "errors": 0,
             },
             "skipped_meta_list": [],   # [{channel, msg_id, file_name, file_size, caption, timestamp}]
-            "skipped_nonvid_list": [], # [{channel, msg_id, file_name, file_size, caption, timestamp}]
             "started_at": 0.0,
             "updated_at": 0.0,
             "finished_at": 0.0,
@@ -95,7 +93,6 @@ class ScanManager:
             "indexed": 0,
             "skipped_dup": 0,
             "skipped_meta": 0,
-            "skipped_nonvid": 0,
             "errors": 0,
         }
 
@@ -402,8 +399,6 @@ class ScanManager:
                 is_video_doc = fname.endswith(('.mkv', '.mp4'))
 
         if not (is_video or is_video_doc):
-            s["counters"]["skipped_nonvid"] += 1
-            self._track_skipped("nonvid", message)
             return
 
         file = message.video or message.document
@@ -489,14 +484,11 @@ class ScanManager:
 
     async def retry_skipped(self, client, channel: int, msg_id: int,
                             override_id: str = None) -> dict:
-        """Re-process a previously-skipped file.  Tries nonvid first, then meta."""
+        """Re-process a previously-skipped file."""
         reason = None
-        for r in ("nonvid", "meta"):
-            for entry in self.state.get(f"skipped_{r}_list", []):
-                if entry["channel"] == channel and entry["msg_id"] == msg_id:
-                    reason = r
-                    break
-            if reason:
+        for entry in self.state.get("skipped_meta_list", []):
+            if entry["channel"] == channel and entry["msg_id"] == msg_id:
+                reason = "meta"
                 break
         if not reason:
             return {"ok": False, "message": "Message not found in skipped list."}
@@ -547,9 +539,8 @@ class ScanManager:
         except Exception as e:
             return {"ok": False, "message": f"DB insert error: {e}"}
 
-        # Success — remove from skipped lists
+        # Success — remove from skipped list
         self.remove_skipped("meta", channel, msg_id)
-        self.remove_skipped("nonvid", channel, msg_id)
         return {"ok": True, "message": f"Indexed successfully.",
                 "title": title_clean, "media_type": meta.get("media_type")}
 

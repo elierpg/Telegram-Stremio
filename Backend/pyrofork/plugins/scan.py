@@ -29,10 +29,9 @@ def _format_status() -> str:
     total = c["total_found"]
     indexed = c["indexed"]
     skipped_meta = c["skipped_meta"]
-    skipped_nonvid = c["skipped_nonvid"]
     skipped_dup = c["skipped_dup"]
     errors = c["errors"]
-    accounted = indexed + skipped_meta + skipped_nonvid + skipped_dup + errors
+    accounted = indexed + skipped_meta + skipped_dup + errors
 
     lines.append(f"⏱ Duration: <code>{s['elapsed']}</code>")
     lines.append("")
@@ -40,7 +39,6 @@ def _format_status() -> str:
     lines.append(f"✅ Indexed: <code>{indexed}</code>")
     lines.append(f"⏭ Already in DB: <code>{skipped_dup}</code>")
     lines.append(f"⚠️ No metadata: <code>{skipped_meta}</code>")
-    lines.append(f"📎 Non-video: <code>{skipped_nonvid}</code>")
     lines.append(f"❌ Errors: <code>{errors}</code>")
 
     if s["is_running"]:

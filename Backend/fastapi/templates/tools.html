@@ -154,7 +154,6 @@
             <div class="stat-box"><div class="v" style="color:#22c55e" id="sc-indexed">0</div><div class="l">Indexed</div></div>
             <div class="stat-box"><div class="v" id="sc-dup">0</div><div class="l">Skipped (dup)</div></div>
             <div class="stat-box"><div class="v" id="sc-meta">0</div><div class="l">Skipped (meta)</div></div>
-            <div class="stat-box"><div class="v" id="sc-nonvid">0</div><div class="l">Non-video</div></div>
             <div class="stat-box"><div class="v" style="color:#ef4444" id="sc-errors">0</div><div class="l">Errors</div></div>
         </div>
 
@@ -353,7 +352,6 @@ function renderScan(s) {
     setText('sc-indexed', c.indexed || 0);
     setText('sc-dup', c.skipped_dup || 0);
     setText('sc-meta', c.skipped_meta || 0);
-    setText('sc-nonvid', c.skipped_nonvid || 0);
     setText('sc-errors', c.errors || 0);
     setText('scan-elapsed', s.elapsed || '0s');
 

@@ -125,8 +125,7 @@
   <p class="text-sm" style="color: var(--text-muted, #94a3b8);">Select files and use the batch bar to index or dismiss.</p>
 
   <div class="tabs" style="margin-top: 1.5rem;">
-    <div class="tab tab-active" data-tab="meta" onclick="switchTab('meta')">⚠️ Metadata Failed</div>
-    <div class="tab tab-inactive" data-tab="nonvid" onclick="switchTab('nonvid')">📎 Non-Video</div>
+    <div class="tab tab-active" data-tab="meta">⚠️ Metadata Failed</div>
   </div>
 
   <div style="display:flex; gap:0.4rem; align-items:center; margin-bottom:0.65rem; flex-wrap:wrap;">
@@ -182,16 +181,6 @@ let allGroups = [];
 let currentPage = 1;
 const PAGE_SIZES = [25, 50, 100];
 let pageSize = 50;
-
-function switchTab(reason) {
-  currentReason = reason;
-  document.querySelectorAll('.tab').forEach(t => {
-    t.classList.toggle('tab-active', t.dataset.tab === reason);
-    t.classList.toggle('tab-inactive', t.dataset.tab !== reason);
-  });
-  currentPage = 1;
-  loadSkipped();
-}
 
 async function loadSkipped() {
   const c = document.getElementById('skipped-list');
