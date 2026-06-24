@@ -12,7 +12,7 @@ from Backend.fastapi.routes.template_routes import (
     login_page, login_post, logout, set_theme, dashboard_page,
     media_management_page, edit_media_page, public_status_page, stremio_guide_page,
     admin_dashboard_page, admin_subscriptions_page, admin_access_page,
-    custom_catalogs_page, settings_page, tools_page
+    custom_catalogs_page, settings_page, tools_page, review_page
 )
 from Backend.fastapi.routes.api_routes import (
     list_media_api, delete_media_api, update_media_api,
@@ -34,7 +34,8 @@ from Backend.fastapi.routes.api_routes import (
     get_auto_catalog_settings_api, update_auto_catalog_settings_api,
     get_settings_api, update_settings_api,
     get_tools_channels_api, start_scan_api, cancel_scan_api, scan_status_api,
-    start_dbcheck_api, cancel_dbcheck_api, dbcheck_status_api, purge_dead_links_api
+    start_dbcheck_api, cancel_dbcheck_api, dbcheck_status_api, purge_dead_links_api,
+    get_skipped_files_api, retry_skipped_api, dismiss_skipped_api
 )
 
 templates = Jinja2Templates(directory="Backend/fastapi/templates")
@@ -425,6 +426,23 @@ async def tools_dbcheck_status(_: bool = Depends(require_auth)):
 @app.post("/api/admin/tools/dead-links/purge")
 async def tools_purge_dead_links(payload: dict | None = None, _: bool = Depends(require_auth)):
     return await purge_dead_links_api(payload)
+
+# --- Skipped-files review ---
+@app.get("/admin/review", response_class=HTMLResponse)
+async def admin_review(request: Request, _: bool = Depends(require_auth)):
+    return await review_page(request, _)
+
+@app.get("/api/admin/tools/scan/skipped")
+async def tools_skipped_files(reason: str = Query("meta"), _: bool = Depends(require_auth)):
+    return await get_skipped_files_api(reason)
+
+@app.post("/api/admin/tools/scan/retry")
+async def tools_retry_skipped(payload: dict, _: bool = Depends(require_auth)):
+    return await retry_skipped_api(payload)
+
+@app.delete("/api/admin/tools/scan/skipped/{reason}/{channel}/{msg_id}")
+async def tools_dismiss_skipped(reason: str, channel: int, msg_id: int, _: bool = Depends(require_auth)):
+    return await dismiss_skipped_api(channel, msg_id, reason)
 
 @app.exception_handler(401)
 async def auth_exception_handler(request: Request, exc):

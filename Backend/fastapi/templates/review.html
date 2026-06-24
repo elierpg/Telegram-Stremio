@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Review Skipped Files — MyNuvios{% endblock %}
+{% block content %}
+<style>
+  .tool-card { background: var(--card-bg, rgba(255,255,255,0.05)); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .skip-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  .skip-table th { text-align: left; padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1)); color: var(--text-muted, #94a3b8); font-weight: 600; white-space: nowrap; }
+  .skip-table td { padding: 0.65rem 0.5rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05)); vertical-align: middle; }
+  .skip-table tr:hover td { background: rgba(255,255,255,0.03); }
+  .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+  .badge-meta { background: #f59e0b20; color: #f59e0b; }
+  .badge-nonvid { background: #ef444420; color: #ef4444; }
+  .filename-cell { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted, #94a3b8); }
+  .empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.4; }
+  .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+  .tab { padding: 0.5rem 1.25rem; border-radius: 9999px; cursor: pointer; font-weight: 600; transition: all 0.2s; border: 1px solid transparent; }
+  .tab-active { background: var(--primary, #6366f1); color: #fff; }
+  .tab-inactive { background: transparent; color: var(--text-muted, #94a3b8); border-color: var(--border-color, rgba(255,255,255,0.1)); }
+  .tab-inactive:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
+  .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.8rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; transition: all 0.15s; border: none; }
+  .btn-primary { background: var(--primary, #6366f1); color: #fff; }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover { opacity: 0.85; }
+  .btn-outline { background: transparent; border: 1px solid var(--border-color, rgba(255,255,255,0.2)); color: var(--text-muted, #94a3b8); }
+  .btn-outline:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: var(--card-bg, #1e1e2e); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 1rem; padding: 2rem; max-width: 480px; width: 90%; }
+  .modal-box input, .modal-box select { width: 100%; padding: 0.6rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(0,0,0,0.2); color: inherit; margin-bottom: 0.75rem; font-size: 0.9rem; }
+  .modal-box label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted, #94a3b8); margin-bottom: 0.25rem; display: block; }
+  .toast { position: fixed; bottom: 2rem; right: 2rem; padding: 0.75rem 1.5rem; border-radius: 0.75rem; color: #fff; font-weight: 600; z-index: 9999; animation: fadeInUp 0.3s ease; cursor: pointer; }
+  .toast-success { background: #22c55e; }
+  .toast-error { background: #ef4444; }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+<div class="max-w-6xl mx-auto px-4 py-6">
+  <h1 class="text-2xl font-bold mb-1">Review Skipped Files</h1>
+  <p class="text-sm" style="color: var(--text-muted, #94a3b8);">Files that were skipped during channel scan — manually index them with optional metadata override.</p>
+
+  <div class="tabs" style="margin-top: 1.5rem;">
+    <div class="tab tab-active" data-tab="meta" onclick="switchTab('meta')">⚠️ Metadata Failed</div>
+    <div class="tab tab-inactive" data-tab="nonvid" onclick="switchTab('nonvid')">📎 Non-Video</div>
+  </div>
+
+  <div class="tool-card" id="skipped-list">
+    <div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><br>Loading…</div>
+  </div>
+</div>
+
+<!-- Retry modal -->
+<div class="modal-overlay" id="retry-modal">
+  <div class="modal-box">
+    <h3 class="text-lg font-bold mb-1">Re-index with metadata override</h3>
+    <p class="text-xs" style="color: var(--text-muted, #94a3b8); margin-bottom: 1rem;">
+      Optionally provide an IMDb ID (tt1234567) or TMDb ID (numeric) to force metadata.
+    </p>
+    <label for="override-input">Override ID (optional)</label>
+    <input id="override-input" type="text" placeholder="e.g. tt0459666 or 2542" autocomplete="off">
+    <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem;">
+      <button class="btn-sm btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn-sm btn-primary" id="retry-confirm" onclick="confirmRetry()">Index</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentReason = 'meta';
+let retryTarget = null;
+
+function switchTab(reason) {
+  currentReason = reason;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('tab-active', t.dataset.tab === reason);
+    t.classList.toggle('tab-inactive', t.dataset.tab !== reason);
+  });
+  loadSkipped();
+}
+
+async function loadSkipped() {
+  const container = document.getElementById('skipped-list');
+  container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><br>Loading…</div>';
+  try {
+    const resp = await fetch(`/api/admin/tools/scan/skipped?reason=${currentReason}`);
+    const json = await resp.json();
+    if (json.status !== 'success') throw new Error(json.detail || 'Unknown error');
+    renderSkipped(json.data);
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state" style="color:#ef4444;"><i class="fa-solid fa-exclamation-triangle"></i><br>Error: ${e.message}</div>`;
+  }
+}
+
+function renderSkipped(entries) {
+  const container = document.getElementById('skipped-list');
+  if (!entries || entries.length === 0) {
+    container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color:#22c55e;"></i><br>No skipped files in this category.</div>';
+    return;
+  }
+
+  let html = `<table class="skip-table"><thead><tr>
+    <th>File</th>
+    <th>Channel</th>
+    <th>ID</th>
+    <th>Size</th>
+    <th style="text-align:right;">Actions</th>
+  </tr></thead><tbody>`;
+
+  for (const e of entries) {
+    const fname = e.file_name || '(no name)';
+    const cap = e.caption ? e.caption.substring(0, 60) : '';
+    const sizeStr = e.file_size ? formatSize(e.file_size) : '—';
+    html += `<tr>
+      <td><div class="filename-cell" title="${esc(fname)}${cap ? ' — ' + esc(cap) : ''}">${esc(fname)}</div></td>
+      <td><code>${esc(String(e.channel))}</code></td>
+      <td><code>${e.msg_id}</code></td>
+      <td>${sizeStr}</td>
+      <td style="text-align:right; white-space:nowrap;">
+        <button class="btn-sm btn-primary" onclick="openRetry(${e.channel}, ${e.msg_id})"><i class="fa-solid fa-play"></i> Index</button>
+        <button class="btn-sm btn-danger" onclick="dismiss(${e.channel}, ${e.msg_id})"><i class="fa-solid fa-trash"></i></button>
+      </td>
+    </tr>`;
+  }
+
+  html += `</tbody></table>`;
+  html += `<p style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-muted,#94a3b8);">${entries.length} file${entries.length !== 1 ? 's' : ''}</p>`;
+  container.innerHTML = html;
+}
+
+function openRetry(channel, msgId) {
+  retryTarget = { channel, msgId };
+  document.getElementById('override-input').value = '';
+  document.getElementById('retry-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('retry-modal').classList.remove('open');
+  retryTarget = null;
+}
+
+async function confirmRetry() {
+  if (!retryTarget) return;
+  const btn = document.getElementById('retry-confirm');
+  btn.disabled = true;
+  btn.textContent = 'Indexing…';
+  const overrideId = document.getElementById('override-input').value.trim() || undefined;
+  try {
+    const resp = await fetch('/api/admin/tools/scan/retry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel: retryTarget.channel, msg_id: retryTarget.msgId, override_id: overrideId }),
+    });
+    const json = await resp.json();
+    if (json.status === 'success') {
+      showToast('Indexed successfully!', 'success');
+      closeModal();
+      loadSkipped();
+    } else {
+      showToast(json.detail || 'Retry failed', 'error');
+    }
+  } catch (e) {
+    showToast('Network error: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = 'Index';
+}
+
+async function dismiss(channel, msgId) {
+  if (!confirm('Remove this entry from the skipped list?')) return;
+  try {
+    const resp = await fetch(`/api/admin/tools/scan/skipped/${currentReason}/${channel}/${msgId}`, { method: 'DELETE' });
+    const json = await resp.json();
+    if (json.status === 'success') {
+      showToast('Removed from list.', 'success');
+      loadSkipped();
+    } else {
+      showToast(json.detail || 'Failed to remove.', 'error');
+    }
+  } catch (e) {
+    showToast('Network error: ' + e.message, 'error');
+  }
+}
+
+function showToast(msg, type) {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.remove(); }, 3000);
+  el.onclick = () => el.remove();
+}
+
+function formatSize(bytes) {
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// Load on page load
+loadSkipped();
+</script>
+{% endblock %}

@@ -25,6 +25,8 @@ DBCHECK_CONCURRENCY = 5        # concurrent get_messages during integrity check
 DBCHECK_BATCH_DELAY = 0.3      # seconds between concurrent groups
 DBCHECK_PAGE_SIZE = 100        # mongo pagination size
 
+SKIPPED_MAX = 500              # max kept skipped entries per reason
+
 _STATE_COLLECTION = "scan_state"
 _SCAN_DOC_ID = "scan"
 
@@ -76,6 +78,8 @@ class ScanManager:
                 "skipped_nonvid": 0,
                 "errors": 0,
             },
+            "skipped_meta_list": [],   # [{channel, msg_id, file_name, file_size, caption, timestamp}]
+            "skipped_nonvid_list": [], # [{channel, msg_id, file_name, file_size, caption, timestamp}]
             "started_at": 0.0,
             "updated_at": 0.0,
             "finished_at": 0.0,
@@ -398,6 +402,7 @@ class ScanManager:
 
         if not (is_video or is_video_doc):
             s["counters"]["skipped_nonvid"] += 1
+            self._track_skipped("nonvid", message)
             return
 
         file = message.video or message.document
@@ -426,6 +431,7 @@ class ScanManager:
 
         if metadata_info is None:
             s["counters"]["skipped_meta"] += 1
+            self._track_skipped("meta", message, file_name, file.file_size, caption_text)
             return
 
         title_clean = remove_urls(caption_text or file_name)
@@ -444,9 +450,107 @@ class ScanManager:
                 s["counters"]["indexed"] += 1
             else:
                 s["counters"]["skipped_meta"] += 1
+                self._track_skipped("meta", message, file_name, file.file_size, caption_text)
         except Exception as e:
             LOGGER.error(f"[ScanManager] DB insert error msg {msg_id}: {e}")
             s["counters"]["errors"] += 1
+
+    # ── Skipped-file helpers ──────────────────────────────────────────────────
+    def _track_skipped(self, reason: str, message, file_name: str = "",
+                       file_size: int = 0, caption: str = "") -> None:
+        f = message.document or message.video
+        entry = {
+            "channel": int(str(message.chat.id).replace("-100", "")),
+            "msg_id": message.id,
+            "file_name": file_name or (getattr(f, "file_name", None) or ""),
+            "file_size": file_size or (getattr(f, "file_size", None) or 0),
+            "caption": caption or (message.caption or ""),
+            "timestamp": _now(),
+        }
+        lst = self.state.get(f"skipped_{reason}_list", [])
+        # remove existing entry for same channel+msg_id if present
+        lst[:] = [e for e in lst if not (e["channel"] == entry["channel"] and e["msg_id"] == entry["msg_id"])]
+        lst.append(entry)
+        # cap
+        if len(lst) > SKIPPED_MAX:
+            lst[:] = lst[-SKIPPED_MAX:]
+        self.state[f"skipped_{reason}_list"] = lst
+
+    def get_skipped_files(self, reason: str) -> list:
+        return list(self.state.get(f"skipped_{reason}_list", []))
+
+    def remove_skipped(self, reason: str, channel: int, msg_id: int) -> bool:
+        lst = self.state.get(f"skipped_{reason}_list", [])
+        before = len(lst)
+        lst[:] = [e for e in lst if not (e["channel"] == channel and e["msg_id"] == msg_id)]
+        self.state[f"skipped_{reason}_list"] = lst
+        return len(lst) < before
+
+    async def retry_skipped(self, client, channel: int, msg_id: int,
+                            override_id: str = None) -> dict:
+        """Re-process a previously-skipped file.  Tries nonvid first, then meta."""
+        reason = None
+        for r in ("nonvid", "meta"):
+            for entry in self.state.get(f"skipped_{r}_list", []):
+                if entry["channel"] == channel and entry["msg_id"] == msg_id:
+                    reason = r
+                    break
+            if reason:
+                break
+        if not reason:
+            return {"ok": False, "message": "Message not found in skipped list."}
+
+        try:
+            chat_id = int(f"-100{channel}")
+            msgs = await client.get_messages(chat_id, [msg_id])
+            if not msgs or not msgs[0] or msgs[0].empty:
+                self.remove_skipped(reason, channel, msg_id)
+                return {"ok": False, "message": "Message no longer exists on Telegram."}
+            message = msgs[0]
+        except Exception as e:
+            return {"ok": False, "message": f"Could not fetch message: {e}"}
+
+        file = message.video or message.document
+        if not file:
+            self.remove_skipped(reason, channel, msg_id)
+            return {"ok": False, "message": "Message has no media file."}
+
+        file_name = file.file_name or ""
+        caption_text = message.caption or ""
+        channel_int = channel
+        size = get_readable_file_size(file.file_size)
+
+        try:
+            meta = await metadata(
+                clean_filename(file_name), channel_int, msg_id,
+                override_id=override_id or None,
+                caption=caption_text if caption_text else None,
+            )
+        except Exception as e:
+            return {"ok": False, "message": f"Metadata error: {e}"}
+
+        if meta is None:
+            return {"ok": False, "message": "Metadata lookup still failed."}
+
+        title_clean = remove_urls(caption_text or file_name)
+        if not title_clean.endswith(('.mkv', '.mp4')):
+            title_clean += '.mkv'
+
+        try:
+            updated_id = await self._db.insert_media(
+                meta, channel=channel_int, msg_id=msg_id,
+                size=size, name=title_clean,
+            )
+            if not updated_id:
+                return {"ok": False, "message": "DB insert returned no ID (duplicate?)."}
+        except Exception as e:
+            return {"ok": False, "message": f"DB insert error: {e}"}
+
+        # Success — remove from skipped lists
+        self.remove_skipped("meta", channel, msg_id)
+        self.remove_skipped("nonvid", channel, msg_id)
+        return {"ok": True, "message": f"Indexed successfully.",
+                "title": title_clean, "media_type": meta.get("media_type")}
 
     # ── Purge (rescan helper) ────────────────────────────────────────────────
     async def _purge_channel_entries(self, channel_int: int) -> int:
