@@ -22,12 +22,11 @@
   .btn-success { background: #22c55e; color: #fff; }
   .btn-xs { padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius: 0.4rem; }
 
-  .group-hdr { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.65rem; border-radius: 0.6rem; cursor: pointer; transition: background 0.15s; border: 1px solid var(--border-color, rgba(255,255,255,0.06)); margin-bottom: 0.25rem; user-select: none; }
-  .group-hdr:hover { background: rgba(255,255,255,0.04); }
-  .group-hdr .arrow { width: 18px; text-align: center; color: var(--text-muted, #94a3b8); transition: transform 0.2s; font-size: 0.75rem; flex-shrink: 0; }
-  .group-hdr .arrow.open { transform: rotate(90deg); }
+  .group-hdr { padding: 0.55rem 0.65rem; border-radius: 0.6rem; border: 1px solid var(--border-color, rgba(255,255,255,0.06)); margin-bottom: 0.15rem; user-select: none; }
+  .group-hdr-top { display: flex; align-items: center; gap: 0.4rem; }
   .group-hdr .gtitle { flex: 1; min-width: 0; font-weight: 700; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .group-hdr .gcount { font-size: 0.72rem; color: var(--text-muted, #94a3b8); background: rgba(255,255,255,0.06); padding: 0.15rem 0.5rem; border-radius: 999px; white-space: nowrap; }
+  .group-hdr .gcount { font-size: 0.72rem; color: var(--text-muted, #94a3b8); background: rgba(255,255,255,0.06); padding: 0.15rem 0.5rem; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
+  .group-hdr .gpreview { font-size: 0.72rem; color: var(--text-muted, #94a3b8); margin-top: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .group-body { padding-left: 0.25rem; }
 
   .batch-bar { display: none; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-radius: 0.75rem; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); margin-bottom: 1rem; flex-wrap: wrap; }
@@ -132,8 +131,6 @@
 
   <div style="display:flex; gap:0.4rem; align-items:center; margin-bottom:0.65rem; flex-wrap:wrap;">
     <label class="select-all-label"><input type="checkbox" onchange="toggleSelectAll(this)"> <span id="select-all-text">Select all on page</span></label>
-    <button class="btn btn-outline btn-xs" onclick="expandAll()">+ Expand all</button>
-    <button class="btn btn-outline btn-xs" onclick="collapseAll()">− Collapse all</button>
     <span style="font-size:0.8rem; color:var(--text-muted,#94a3b8); margin-left:auto;" id="total-count"></span>
   </div>
 
@@ -303,11 +300,16 @@ function renderGroups(groups, entries) {
       </div>`;
     }
 
+    const previewNames = g.entries.slice(0, 4).map(e => esc(e.file_name || '?')).join(', ');
+    const preview = g.entries.length > 4 ? previewNames + ', …' : previewNames;
+
     html += `<div class="group-section">
-      <div class="group-hdr" onclick="togGroup(this)">
-        <div class="arrow open">▶</div>
-        <div class="gtitle">${base}</div>
-        <div class="gcount">${g.count}</div>
+      <div class="group-hdr">
+        <div class="group-hdr-top">
+          <div class="gtitle">${base}</div>
+          <div class="gcount">${g.count}</div>
+        </div>
+        <div class="gpreview" title="${esc(preview)}">${preview}</div>
       </div>
       <label class="group-chk-all"><input type="checkbox" onchange="togGroupSel(this,'${g.base}')"> Select all in group</label>
       <div class="group-body">
@@ -331,25 +333,6 @@ function renderGroups(groups, entries) {
   c.innerHTML = html;
   resetSelectAllCheckbox();
   updBar();
-}
-
-function togGroup(el) {
-  const body = el.parentElement.querySelector('.group-body');
-  const arrow = el.querySelector('.arrow');
-  if (!body) return;
-  const h = body.style.display === 'none';
-  body.style.display = h ? '' : 'none';
-  if (arrow) arrow.classList.toggle('open', h);
-}
-
-function expandAll() {
-  document.querySelectorAll('.group-body').forEach(b => b.style.display = '');
-  document.querySelectorAll('.arrow').forEach(a => a.classList.add('open'));
-}
-
-function collapseAll() {
-  document.querySelectorAll('.group-body').forEach(b => b.style.display = 'none');
-  document.querySelectorAll('.arrow').forEach(a => a.classList.remove('open'));
 }
 
 function goToPage(page) {
