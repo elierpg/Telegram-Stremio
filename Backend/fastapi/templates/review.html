@@ -2,7 +2,7 @@
 {% block title %}Review Skipped Files — MyNuvios{% endblock %}
 {% block content %}
 <style>
-  .tool-card { background: var(--card-bg, rgba(255,255,255,0.05)); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .tool-card { background: var(--card-bg, rgba(255,255,255,0.05)); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 1rem; padding: 1.5rem; margin-bottom: 5rem; }
   .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted, #94a3b8); }
   .empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.4; }
   .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
@@ -10,7 +10,8 @@
   .tab-active { background: var(--primary, #6366f1); color: #fff; }
   .tab-inactive { background: transparent; color: var(--text-muted, #94a3b8); border-color: var(--border-color, rgba(255,255,255,0.1)); }
   .tab-inactive:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
-  .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.8rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; transition: all 0.15s; border: none; white-space: nowrap; }
+
+  .btn { padding: 0.45rem 1rem; font-size: 0.85rem; border-radius: 0.6rem; cursor: pointer; font-weight: 600; transition: all 0.15s; border: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.4rem; }
   .btn-primary { background: var(--primary, #6366f1); color: #fff; }
   .btn-primary:hover { opacity: 0.85; }
   .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -19,50 +20,66 @@
   .btn-outline { background: transparent; border: 1px solid var(--border-color, rgba(255,255,255,0.2)); color: var(--text-muted, #94a3b8); }
   .btn-outline:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
   .btn-success { background: #22c55e; color: #fff; }
-  .btn-success:hover { opacity: 0.85; }
+  .btn-xs { padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius: 0.4rem; }
 
-  .group-hdr { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.65rem; border-radius: 0.6rem; cursor: pointer; transition: background 0.15s; border: 1px solid var(--border-color, rgba(255,255,255,0.06)); margin-bottom: 0.25rem; user-select: none; }
+  /* ── Group header ── */
+  .group-hdr { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.65rem; border-radius: 0.6rem; cursor: pointer; transition: background 0.15s; border: 1px solid var(--border-color, rgba(255,255,255,0.06)); margin-bottom: 0.25rem; user-select: none; }
   .group-hdr:hover { background: rgba(255,255,255,0.04); }
-  .group-hdr .icon { width: 20px; text-align: center; color: var(--text-muted, #94a3b8); transition: transform 0.2s; font-size: 0.8rem; flex-shrink: 0; }
-  .group-hdr .icon.open { transform: rotate(90deg); }
-  .group-hdr .title { flex: 1; min-width: 0; font-weight: 700; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .group-hdr .count { font-size: 0.75rem; color: var(--text-muted, #94a3b8); background: rgba(255,255,255,0.06); padding: 0.15rem 0.55rem; border-radius: 999px; white-space: nowrap; }
-  .group-hdr .inject { font-size: 0.7rem; }
-
+  .group-hdr .arrow { width: 18px; text-align: center; color: var(--text-muted, #94a3b8); transition: transform 0.2s; font-size: 0.75rem; flex-shrink: 0; }
+  .group-hdr .arrow.open { transform: rotate(90deg); }
+  .group-hdr .gtitle { flex: 1; min-width: 0; font-weight: 700; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .group-hdr .gcount { font-size: 0.72rem; color: var(--text-muted, #94a3b8); background: rgba(255,255,255,0.06); padding: 0.15rem 0.5rem; border-radius: 999px; white-space: nowrap; }
   .group-body { padding-left: 0.25rem; }
 
-  /* ── Batch bar ── */
-  .batch-bar { display: none; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-radius: 0.75rem; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); margin-bottom: 1rem; flex-wrap: wrap; }
+  /* ── Batch bar (top on desktop, fixed bottom on mobile) ── */
+  .batch-bar { display: none; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-radius: 0.75rem; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); margin-bottom: 1rem; flex-wrap: wrap; }
   .batch-bar.show { display: flex; }
   .batch-bar .count { font-weight: 700; font-size: 0.9rem; color: var(--primary, #6366f1); margin-right: auto; }
 
-  /* ── Desktop table (inside group body) ── */
+  /* ── Desktop table ── */
   .skip-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  .skip-table th { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1)); color: var(--text-muted, #94a3b8); font-weight: 600; white-space: nowrap; }
+  .skip-table th { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1)); color: var(--text-muted, #94a3b8); font-weight: 600; white-space: nowrap; font-size: 0.78rem; }
   .skip-table td { padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05)); vertical-align: middle; }
   .skip-table tr:hover td { background: rgba(255,255,255,0.03); }
   .skip-table .chk { width: 36px; text-align: center; }
   .skip-table .chk input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary, #6366f1); }
   .skip-table .fname { max-width: 0; width: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .skip-table .chnl { white-space: nowrap; }
-  .skip-table .size { white-space: nowrap; }
+  .skip-table .size { white-space: nowrap; color: var(--text-muted, #94a3b8); }
   .skip-table .actions { white-space: nowrap; text-align: right; }
 
-  /* ── Mobile card list ── */
+  /* ── Mobile cards (hidden by default) ── */
   .skip-cards { display: none; }
+  .group-chk-all { display: none; }
+
   @media (max-width: 640px) {
     .skip-table { display: none; }
-    .skip-cards { display: flex; flex-direction: column; gap: 0.5rem; }
-    .skip-card { background: var(--card-bg, rgba(255,255,255,0.03)); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 0.85rem; padding: 0.75rem; }
-    .skip-card-top { display: flex; align-items: flex-start; gap: 0.6rem; }
-    .skip-card-top input[type=checkbox] { margin-top: 0.2rem; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primary, #6366f1); cursor: pointer; }
-    .skip-card-fname { flex: 1; min-width: 0; font-size: 0.85rem; font-weight: 600; word-break: break-all; line-height: 1.3; }
-    .skip-card-meta { margin-top: 0.4rem; margin-left: 1.7rem; display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; font-size: 0.75rem; color: var(--text-muted, #94a3b8); }
-    .skip-card-meta code { font-size: 0.75rem; }
-    .skip-card-actions { margin-top: 0.5rem; margin-left: 1.7rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
-    .tool-card { padding: 1rem; }
-    .group-hdr { padding: 0.5rem; }
-    .group-hdr .title { font-size: 0.85rem; }
+    .skip-cards { display: flex; flex-direction: column; gap: 0.4rem; }
+    .skip-card { background: var(--card-bg, rgba(255,255,255,0.03)); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 0.65rem; padding: 0.65rem 0.7rem; }
+    .skip-card-inner { display: flex; align-items: center; gap: 0.6rem; }
+    .skip-card-inner input[type=checkbox] { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--primary, #6366f1); cursor: pointer; margin-top: 0.1rem; }
+    .skip-card-body { flex: 1; min-width: 0; }
+    .skip-card-name { font-size: 0.82rem; font-weight: 600; word-break: break-all; line-height: 1.3; }
+    .skip-card-meta { display: flex; flex-wrap: wrap; gap: 0.3rem 0.7rem; font-size: 0.7rem; color: var(--text-muted, #94a3b8); margin-top: 0.2rem; }
+    .skip-card-actions { display: flex; gap: 0.35rem; margin-top: 0.45rem; margin-left: 2rem; }
+    .skip-card-actions .btn { font-size: 0.72rem; padding: 0.3rem 0.55rem; }
+
+    /* Group header mobile */
+    .group-hdr { padding: 0.45rem 0.55rem; }
+    .group-hdr .gtitle { font-size: 0.82rem; }
+
+    /* Group - select all row */
+    .group-chk-all { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.1rem 0.35rem 2.2rem; font-size: 0.75rem; color: var(--text-muted, #94a3b8); cursor: pointer; }
+    .group-chk-all input { width: 18px; height: 18px; accent-color: var(--primary, #6366f1); cursor: pointer; margin: 0; }
+    .group-chk-all:hover { color: var(--primary, #6366f1); }
+
+    /* Fixed bottom batch bar on mobile */
+    .batch-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; border-radius: 0; margin: 0; padding: 0.7rem 0.85rem; background: rgba(20,20,30,0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(99,102,241,0.3); border-left: none; border-right: none; border-bottom: none; }
+    .batch-bar .count { font-size: 0.85rem; }
+    .batch-bar .btn { padding: 0.5rem 0.75rem; font-size: 0.8rem; border-radius: 0.5rem; }
+    .tool-card { margin-bottom: 5rem; padding: 0.75rem; }
+    .tabs { margin-bottom: 1rem; }
+    .tabs .tab { font-size: 0.78rem; padding: 0.4rem 0.9rem; }
   }
 
   /* ── Modal ── */
@@ -73,9 +90,8 @@
   .modal-box input[type=text], .modal-box select { width: 100%; padding: 0.6rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(0,0,0,0.2); color: inherit; margin-bottom: 0.5rem; font-size: 0.9rem; box-sizing: border-box; }
   .modal-box label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted, #94a3b8); margin-bottom: 0.25rem; display: block; }
   .modal-box hr { border: none; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08)); margin: 0.75rem 0; }
-  .modal-box .group-apply { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.65rem; border-radius: 0.5rem; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); margin-bottom: 0.75rem; font-size: 0.8rem; cursor: pointer; }
-  .modal-box .group-apply input { width: auto; margin: 0; accent-color: #22c55e; cursor: pointer; }
-  .modal-box .group-apply input[type=checkbox] { width: auto; }
+  .group-apply { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.65rem; border-radius: 0.5rem; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); margin-bottom: 0.75rem; font-size: 0.8rem; cursor: pointer; }
+  .group-apply input[type=checkbox] { width: auto; margin: 0; accent-color: #22c55e; cursor: pointer; }
   .search-result { display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem 0.65rem; border-radius: 0.6rem; border: 1px solid var(--border-color, rgba(255,255,255,0.08)); margin-bottom: 0.35rem; cursor: pointer; transition: all 0.15s; }
   .search-result:hover { border-color: var(--primary, #6366f1); background: rgba(99,102,241,0.08); }
   .search-result.selected { border-color: #22c55e; background: rgba(34,197,94,0.08); }
@@ -98,25 +114,25 @@
 
 <div class="max-w-6xl mx-auto px-4 py-6">
   <h1 class="text-2xl font-bold mb-1">Review Skipped Files</h1>
-  <p class="text-sm" style="color: var(--text-muted, #94a3b8);">Files skipped during channel scan — grouped by similar name. Click a group to expand.</p>
+  <p class="text-sm" style="color: var(--text-muted, #94a3b8);">Select files and use the batch bar to index or dismiss.</p>
 
   <div class="tabs" style="margin-top: 1.5rem;">
     <div class="tab tab-active" data-tab="meta" onclick="switchTab('meta')">⚠️ Metadata Failed</div>
     <div class="tab tab-inactive" data-tab="nonvid" onclick="switchTab('nonvid')">📎 Non-Video</div>
   </div>
 
+  <div style="display:flex; gap:0.4rem; align-items:center; margin-bottom:0.65rem; flex-wrap:wrap;">
+    <button class="btn btn-outline btn-xs" onclick="expandAll()">+ Expand all</button>
+    <button class="btn btn-outline btn-xs" onclick="collapseAll()">− Collapse all</button>
+    <span style="font-size:0.8rem; color:var(--text-muted,#94a3b8); margin-left:auto;" id="total-count"></span>
+  </div>
+
   <!-- Batch action bar -->
   <div class="batch-bar" id="batch-bar">
     <span class="count" id="sel-count">0 selected</span>
-    <button class="btn-sm btn-primary" onclick="batchIndex()"><i class="fa-solid fa-play"></i> Index all</button>
-    <button class="btn-sm btn-danger" onclick="batchDismiss()"><i class="fa-solid fa-trash"></i> Dismiss all</button>
-    <button class="btn-sm btn-outline" onclick="clearSelection()">Clear</button>
-  </div>
-
-  <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap;">
-    <button class="btn-sm btn-outline" onclick="expandAll()"><i class="fa-solid fa-plus-circle"></i> Expand all</button>
-    <button class="btn-sm btn-outline" onclick="collapseAll()"><i class="fa-solid fa-minus-circle"></i> Collapse all</button>
-    <span style="font-size:0.8rem; color:var(--text-muted,#94a3b8); margin-left:auto;" id="total-count"></span>
+    <button class="btn btn-primary" onclick="batchIndex()"><i class="fa-solid fa-play"></i> Index</button>
+    <button class="btn btn-danger" onclick="batchDismiss()"><i class="fa-solid fa-trash"></i> Dismiss</button>
+    <button class="btn btn-outline btn-xs" onclick="clearSelection()">Clear</button>
   </div>
 
   <div class="tool-card" id="skipped-list">
@@ -124,13 +140,11 @@
   </div>
 </div>
 
-<!-- Retry modal (single & batch) -->
+<!-- Retry modal -->
 <div class="modal-overlay" id="retry-modal">
   <div class="modal-box">
     <h3 class="text-lg font-bold mb-1">🔍 Search &amp; index</h3>
-    <p class="text-xs" style="color: var(--text-muted, #94a3b8); margin-bottom: 0.75rem;" id="retry-desc">
-      Search for the correct title and click a result.
-    </p>
+    <p class="text-xs" style="color: var(--text-muted, #94a3b8); margin-bottom: 0.75rem;" id="retry-desc"></p>
     <div id="group-apply-container"></div>
     <label for="search-input">Search</label>
     <input id="search-input" type="text" placeholder="Search title…" autocomplete="off" oninput="searchDebounced()">
@@ -141,8 +155,8 @@
     <label for="override-input">Or enter IMDb / TMDb ID</label>
     <input id="override-input" type="text" placeholder="e.g. tt0459666 or 2542" autocomplete="off">
     <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.75rem;">
-      <button class="btn-sm btn-outline" onclick="closeModal()">Cancel</button>
-      <button class="btn-sm btn-primary" id="retry-confirm" onclick="confirmRetry()">Index</button>
+      <button class="btn btn-outline btn-xs" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="retry-confirm" onclick="confirmRetry()">Index</button>
     </div>
   </div>
 </div>
@@ -161,7 +175,6 @@ let currentReason = 'meta';
 let retryTarget = null;
 let searchTimer = null;
 let allGroups = [];
-let allEntriesFlat = [];
 
 function switchTab(reason) {
   currentReason = reason;
@@ -172,79 +185,78 @@ function switchTab(reason) {
   loadSkipped();
 }
 
-// ── Load & render groups ───────────────────────────────────────────────────
+// ── Load & render ─────────────────────────────────────────────────────────
 
 async function loadSkipped() {
-  const container = document.getElementById('skipped-list');
-  container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><br>Loading…</div>';
+  const c = document.getElementById('skipped-list');
+  c.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><br>Loading…</div>';
   try {
-    const resp = await fetch(`/api/admin/tools/scan/skipped?reason=${currentReason}&grouped=true`);
-    const json = await resp.json();
-    if (json.status !== 'success') throw new Error(json.detail || 'Unknown error');
-    allEntriesFlat = json.data || [];
-    renderGroups(json.groups || [], json.data || []);
+    const r = await fetch(`/api/admin/tools/scan/skipped?reason=${currentReason}&grouped=true`);
+    const j = await r.json();
+    if (j.status !== 'success') throw new Error(j.detail || 'Unknown error');
+    renderGroups(j.groups || [], j.data || []);
   } catch (e) {
-    container.innerHTML = `<div class="empty-state" style="color:#ef4444;"><i class="fa-solid fa-exclamation-triangle"></i><br>Error: ${e.message}</div>`;
+    c.innerHTML = `<div class="empty-state" style="color:#ef4444;"><i class="fa-solid fa-exclamation-triangle"></i><br>${esc(e.message)}</div>`;
   }
 }
 
 function renderGroups(groups, entries) {
-  const container = document.getElementById('skipped-list');
+  const c = document.getElementById('skipped-list');
   document.getElementById('total-count').textContent = entries.length + ' file' + (entries.length !== 1 ? 's' : '');
-
-  if (!entries || entries.length === 0) {
-    container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color:#22c55e;"></i><br>No skipped files in this category.</div>';
+  if (!entries || !entries.length) {
+    c.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color:#22c55e;"></i><br>No skipped files in this category.</div>';
     return;
   }
-
   allGroups = groups;
   let html = '';
 
   for (const g of groups) {
     const base = esc(g.base !== '_ungrouped' ? g.base : '(miscellaneous)');
-    let tableRows = '';
-    let cardHtml = '';
+    let trs = '', cards = '';
 
     for (const e of g.entries) {
-      const fname = e.file_name || '(no name)';
-      const sizeStr = e.file_size ? formatSize(e.file_size) : '—';
-      const fnameEsc = esc(fname);
-      const checked = isSelected(e.channel, e.msg_id) ? 'checked' : '';
+      const fn = e.file_name || '(no name)';
+      const ss = e.file_size ? fmtSize(e.file_size) : '—';
+      const fe = esc(fn);
+      const ch = isSel(e.channel, e.msg_id) ? 'checked' : '';
 
-      tableRows += `<tr>
-        <td class="chk"><input type="checkbox" data-channel="${e.channel}" data-msg="${e.msg_id}" onchange="updateBatchBar()" ${checked}></td>
-        <td><div class="fname" title="${fnameEsc}">${fnameEsc}</div></td>
+      trs += `<tr>
+        <td class="chk"><input type="checkbox" data-ch="${e.channel}" data-msg="${e.msg_id}" onchange="updBar()" ${ch}></td>
+        <td><div class="fname" title="${fe}">${fe}</div></td>
         <td class="chnl"><code>${esc(String(e.channel))}</code></td>
-        <td class="size">${sizeStr}</td>
+        <td class="size">${ss}</td>
         <td class="actions">
-          <button class="btn-sm btn-primary" onclick="openRetryFromGroup('${g.base}', {channel:${e.channel},msgId:${e.msg_id}},'${fnameEsc.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i></button>
-          <button class="btn-sm btn-danger" onclick="dismiss(${e.channel}, ${e.msg_id})"><i class="fa-solid fa-trash"></i></button>
+          <button class="btn btn-primary btn-xs" onclick="openRetryFromGroup('${g.base}',{ch:${e.channel},id:${e.msg_id}},'${fe.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i></button>
+          <button class="btn btn-danger btn-xs" onclick="dismiss(${e.channel},${e.msg_id})"><i class="fa-solid fa-trash"></i></button>
         </td>
       </tr>`;
 
-      cardHtml += `<div class="skip-card">
-        <div class="skip-card-top">
-          <input type="checkbox" data-channel="${e.channel}" data-msg="${e.msg_id}" onchange="updateBatchBar()" ${checked}>
-          <div class="skip-card-fname" title="${fnameEsc}">${fnameEsc}</div>
-        </div>
-        <div class="skip-card-meta">
-          <span>📺 <code>${esc(String(e.channel))}</code></span>
-          <span>#${e.msg_id}</span>
-          <span>${sizeStr}</span>
+      cards += `<div class="skip-card">
+        <div class="skip-card-inner">
+          <input type="checkbox" data-ch="${e.channel}" data-msg="${e.msg_id}" onchange="updBar()" ${ch}>
+          <div class="skip-card-body">
+            <div class="skip-card-name">${fe}</div>
+            <div class="skip-card-meta">
+              <span>📺 <code>${esc(String(e.channel))}</code></span>
+              <span>#${e.msg_id}</span>
+              <span>${ss}</span>
+            </div>
+          </div>
         </div>
         <div class="skip-card-actions">
-          <button class="btn-sm btn-primary" onclick="openRetryFromGroup('${g.base}', {channel:${e.channel},msgId:${e.msg_id}},'${fnameEsc.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i> Index</button>
-          <button class="btn-sm btn-danger" onclick="dismiss(${e.channel}, ${e.msg_id})"><i class="fa-solid fa-trash"></i> Dismiss</button>
+          <button class="btn btn-primary btn-xs" onclick="openRetryFromGroup('${g.base}',{ch:${e.channel},id:${e.msg_id}},'${fe.replace(/'/g, "\\'")}')"><i class="fa-solid fa-play"></i> Index</button>
+          <button class="btn btn-danger btn-xs" onclick="dismiss(${e.channel},${e.msg_id})"><i class="fa-solid fa-trash"></i> Dismiss</button>
         </div>
       </div>`;
     }
 
     html += `<div class="group-section">
-      <div class="group-hdr" onclick="toggleGroup(this)">
-        <div class="icon open">▶</div>
-        <div class="title">${base}</div>
-        <div class="count">${g.count} file${g.count !== 1 ? 's' : ''}</div>
+      <div class="group-hdr" onclick="togGroup(this)">
+        <div class="arrow open">▶</div>
+        <div class="gtitle">${base}</div>
+        <div class="gcount">${g.count}</div>
       </div>
+      <label class="group-chk-all"><input type="checkbox" onchange="togGroupSel(this,'${g.base}')"> Select all in group</label>
       <div class="group-body">
         <table class="skip-table"><thead><tr>
           <th class="chk"></th>
@@ -252,92 +264,90 @@ function renderGroups(groups, entries) {
           <th class="chnl">Channel</th>
           <th class="size">Size</th>
           <th class="actions">Actions</th>
-        </tr></thead><tbody>${tableRows}</tbody></table>
-        <div class="skip-cards">${cardHtml}</div>
+        </tr></thead><tbody>${trs}</tbody></table>
+        <div class="skip-cards">${cards}</div>
       </div>
     </div>`;
   }
 
-  container.innerHTML = html;
-  updateBatchBar();
+  c.innerHTML = html;
+  updBar();
 }
 
-function toggleGroup(el) {
-  const body = el.nextElementSibling;
-  const icon = el.querySelector('.icon');
+function togGroup(el) {
+  const body = el.parentElement.querySelector('.group-body');
+  const arrow = el.querySelector('.arrow');
   if (!body) return;
-  const isHidden = body.style.display === 'none';
-  body.style.display = isHidden ? '' : 'none';
-  if (icon) icon.classList.toggle('open', isHidden);
+  const h = body.style.display === 'none';
+  body.style.display = h ? '' : 'none';
+  if (arrow) arrow.classList.toggle('open', h);
 }
 
 function expandAll() {
   document.querySelectorAll('.group-body').forEach(b => b.style.display = '');
-  document.querySelectorAll('.group-hdr .icon').forEach(i => i.classList.add('open'));
+  document.querySelectorAll('.arrow').forEach(a => a.classList.add('open'));
 }
 
 function collapseAll() {
   document.querySelectorAll('.group-body').forEach(b => b.style.display = 'none');
-  document.querySelectorAll('.group-hdr .icon').forEach(i => i.classList.remove('open'));
+  document.querySelectorAll('.arrow').forEach(a => a.classList.remove('open'));
 }
 
 // ── Selection ──────────────────────────────────────────────────────────────
 
-function getSelected() {
-  const cbs = document.querySelectorAll('#skipped-list input[type=checkbox][data-channel]');
-  const sel = [];
-  for (const cb of cbs) {
-    if (cb.checked) sel.push({ channel: Number(cb.dataset.channel), msgId: Number(cb.dataset.msg) });
-  }
-  return sel;
+function getSel() {
+  const r = [];
+  document.querySelectorAll('#skipped-list input[type=checkbox][data-ch]:checked').forEach(cb => {
+    r.push({ ch: Number(cb.dataset.ch), id: Number(cb.dataset.msg) });
+  });
+  return r;
 }
 
-function getSelectedCount() { return getSelected().length; }
-
-function isSelected(channel, msgId) {
-  return document.querySelector(`#skipped-list input[type=checkbox][data-channel="${channel}"][data-msg="${msgId}"]`)?.checked || false;
+function isSel(ch, id) {
+  const cb = document.querySelector(`#skipped-list input[data-ch="${ch}"][data-msg="${id}"]`);
+  return cb ? cb.checked : false;
 }
 
-function toggleAllInGroup(hdr, checked) {
-  const body = hdr.nextElementSibling;
-  if (!body) return;
-  body.querySelectorAll('input[type=checkbox][data-channel]').forEach(cb => cb.checked = checked);
-  updateBatchBar();
+function togGroupSel(cb, baseName) {
+  const section = cb.closest('.group-section');
+  if (!section) return;
+  section.querySelectorAll('input[type=checkbox][data-ch]').forEach(c => c.checked = cb.checked);
+  updBar();
 }
 
-function updateBatchBar() {
-  const n = getSelectedCount();
+function updBar() {
+  const n = getSel().length;
   const bar = document.getElementById('batch-bar');
   document.getElementById('sel-count').textContent = n + ' selected';
   bar.classList.toggle('show', n > 0);
 }
 
 function clearSelection() {
-  document.querySelectorAll('#skipped-list input[type=checkbox][data-channel]').forEach(cb => cb.checked = false);
-  updateBatchBar();
+  document.querySelectorAll('#skipped-list input[type=checkbox][data-ch]').forEach(cb => cb.checked = false);
+  updBar();
 }
 
 // ── Group-aware index ──────────────────────────────────────────────────────
 
-function openRetryFromGroup(baseName, entry, fileNameHint) {
-  const group = allGroups.find(g => g.base === baseName);
-  let allEntries = [entry];
-  if (group && group.entries.length > 1) {
-    const others = group.entries.filter(
-      e => !(e.channel === entry.channel && e.msg_id === entry.msgId)
-    );
-    allEntries = [entry, ...others.map(e => ({ channel: e.channel, msgId: e.msg_id }))];
+function openRetryFromGroup(baseName, entry, hint) {
+  const grp = allGroups.find(g => g.base === baseName);
+  let all = [{ channel: entry.ch, msgId: entry.id }];
+  if (grp && grp.entries.length > 1) {
+    for (const e of grp.entries) {
+      if (e.channel === entry.ch && e.msg_id === entry.id) continue;
+      all.push({ channel: e.channel, msgId: e.msg_id });
+    }
   }
-  openRetry(allEntries, fileNameHint, group ? group.count : 1);
+  openRetry(all, hint, grp ? grp.count : 1);
 }
 
 function batchIndex() {
-  const sel = getSelected();
+  const sel = getSel();
   if (!sel.length) return;
-  openRetry(sel, sel.length > 1 ? '(batch)' : '');
+  openRetry(sel.map(s => ({ channel: s.ch, msgId: s.id })), sel.length > 1 ? '(batch)' : '');
 }
 
-function openRetry(entries, fileNameHint, groupSize) {
+function openRetry(entries, hint, groupSize) {
   const isBatch = entries.length > 1;
   retryTarget = { entries };
   document.getElementById('group-apply-container').innerHTML = '';
@@ -346,28 +356,25 @@ function openRetry(entries, fileNameHint, groupSize) {
     document.getElementById('retry-desc').textContent =
       groupSize > 1
         ? `🎯 ${groupSize} similar files — the override will apply to all of them.`
-        : `Indexing ${entries.length} files — search once, applies to all selected.`;
+        : `Indexing ${entries.length} files. Search once, applies to all.`;
+    document.getElementById('retry-desc').textContent += `\nFiles: ${entries.length}`;
   } else {
-    document.getElementById('retry-desc').textContent = 'Search for the correct title and click a result.';
-    // Show auto-apply checkbox if there are group siblings available
+    document.getElementById('retry-desc').textContent = 'Search for the title and click a result.';
     if (entries.length > 1) {
       const n = entries.length - 1;
       document.getElementById('group-apply-container').innerHTML =
         `<label class="group-apply"><input type="checkbox" id="auto-apply-group" checked>
-          <span>Also index <strong>${n}</strong> similar file${n !== 1 ? 's' : ''} from this group</span>
-        </label>`;
-      document.getElementById('retry-desc').textContent = 'Search once — the override applies to all similar files.';
+          Also index <strong>${n}</strong> similar file${n !== 1 ? 's' : ''}</label>`;
+      document.getElementById('retry-desc').textContent = 'Search once — applies to all similar files.';
     }
   }
 
   document.getElementById('override-input').value = '';
-  const cleaned = cleanQuery(fileNameHint || '');
-  document.getElementById('search-input').value = cleaned || fileNameHint || '';
+  const cleaned = cleanQ(hint || '');
+  document.getElementById('search-input').value = cleaned || hint || '';
   document.getElementById('search-results').innerHTML = '<div class="empty-state" style="padding:1rem;"><i class="fa-solid fa-spinner fa-spin"></i><br>Searching…</div>';
   document.getElementById('retry-modal').classList.add('open');
-  if (cleaned || fileNameHint) {
-    setTimeout(() => doSearch(), 100);
-  }
+  if (cleaned || hint) setTimeout(() => doSearch(), 100);
 }
 
 function closeModal() {
@@ -380,10 +387,6 @@ async function confirmRetry() {
   let entries = retryTarget.entries || [];
   if (!entries.length) return;
 
-  const autoApply = document.getElementById('auto-apply-group');
-  // If auto-apply checkbox exists and is checked, the entries already include
-  // group siblings from openRetryFromGroup, so no need to modify.
-
   const btn = document.getElementById('retry-confirm');
   btn.disabled = true;
   btn.textContent = 'Indexing…';
@@ -392,24 +395,24 @@ async function confirmRetry() {
   const total = entries.length;
   let ok = 0, fail = 0;
 
-  showBatchProgress(`Indexing ${total} file${total !== 1 ? 's' : ''}…`, `0 / ${total}`);
+  showBatchProg(`Indexing ${total} file${total !== 1 ? 's' : ''}…`, `0 / ${total}`);
 
   for (let i = 0; i < total; i++) {
     const { channel, msgId } = entries[i];
     try {
-      const resp = await fetch('/api/admin/tools/scan/retry', {
+      const r = await fetch('/api/admin/tools/scan/retry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel, msg_id: msgId, override_id: overrideId }),
       });
-      const json = await resp.json();
-      if (json.status === 'success') ok++; else fail++;
+      const j = await r.json();
+      if (j.status === 'success') ok++; else fail++;
     } catch { fail++; }
-    updateBatchProgress(`${i + 1} / ${total}`);
+    updBatchProg(`${i + 1} / ${total}`);
   }
 
-  hideBatchProgress();
-  showToast(`✅ ${ok} indexed${fail ? ', ' + fail + ' failed' : ''}`, fail ? 'error' : 'success');
+  hideBatchProg();
+  toast(`✅ ${ok} indexed${fail ? ', ' + fail + ' failed' : ''}`, fail ? 'error' : 'success');
   btn.disabled = false;
   btn.textContent = 'Index';
   closeModal();
@@ -419,58 +422,56 @@ async function confirmRetry() {
 // ── Dismiss with Telegram delete ───────────────────────────────────────────
 
 async function batchDismiss() {
-  const sel = getSelected();
+  const sel = getSel();
   if (!sel.length) return;
-  if (!confirm(`Dismiss ${sel.length} file${sel.length !== 1 ? 's' : ''} from the list (message will be deleted from Telegram too)?`)) return;
+  if (!confirm(`Delete ${sel.length} file${sel.length !== 1 ? 's' : ''} from the list and from Telegram?`)) return;
 
   let ok = 0, fail = 0;
-  showBatchProgress(`Dismissing ${sel.length} file${sel.length !== 1 ? 's' : ''}…`, `0 / ${sel.length}`);
+  showBatchProg(`Dismissing ${sel.length} file${sel.length !== 1 ? 's' : ''}…`, `0 / ${sel.length}`);
 
   for (let i = 0; i < sel.length; i++) {
-    const { channel, msgId } = sel[i];
+    const { ch, id } = sel[i];
     try {
-      const resp = await fetch(`/api/admin/tools/scan/skipped/${currentReason}/${channel}/${msgId}?delete_telegram=true`, { method: 'DELETE' });
-      const json = await resp.json();
-      if (json.status === 'success') ok++; else fail++;
+      const r = await fetch(`/api/admin/tools/scan/skipped/${currentReason}/${ch}/${id}?delete_telegram=true`, { method: 'DELETE' });
+      const j = await r.json();
+      if (j.status === 'success') ok++; else fail++;
     } catch { fail++; }
-    updateBatchProgress(`${i + 1} / ${sel.length}`);
+    updBatchProg(`${i + 1} / ${sel.length}`);
   }
 
-  hideBatchProgress();
-  showToast(`✅ ${ok} dismissed${fail ? ', ' + fail + ' failed' : ''}`, fail ? 'error' : 'success');
+  hideBatchProg();
+  toast(`✅ ${ok} dismissed${fail ? ', ' + fail + ' failed' : ''}`, fail ? 'error' : 'success');
   loadSkipped();
 }
 
-async function dismiss(channel, msgId) {
-  if (!confirm('Remove this entry and delete the message from Telegram?')) return;
+async function dismiss(ch, id) {
+  if (!confirm('Delete from list and from Telegram?')) return;
   try {
-    const resp = await fetch(`/api/admin/tools/scan/skipped/${currentReason}/${channel}/${msgId}?delete_telegram=true`, { method: 'DELETE' });
-    const json = await resp.json();
-    if (json.status === 'success') {
-      showToast('Removed. ' + (json.telegram_deleted ? 'Telegram message deleted.' : 'Could not delete Telegram message (may have expired).'), 'success');
+    const r = await fetch(`/api/admin/tools/scan/skipped/${currentReason}/${ch}/${id}?delete_telegram=true`, { method: 'DELETE' });
+    const j = await r.json();
+    if (j.status === 'success') {
+      toast('Removed. ' + (j.telegram_deleted ? 'Telegram message deleted.' : 'Could not delete Telegram message.'), 'success');
       loadSkipped();
     } else {
-      showToast(json.detail || 'Failed to remove.', 'error');
+      toast(j.detail || 'Failed.', 'error');
     }
   } catch (e) {
-    showToast('Network error: ' + e.message, 'error');
+    toast('Error: ' + e.message, 'error');
   }
 }
 
-// ── Batch progress UI ──────────────────────────────────────────────────────
+// ── Batch progress ─────────────────────────────────────────────────────────
 
-function showBatchProgress(label, status) {
+function showBatchProg(label, status) {
   document.getElementById('batch-progress-label').textContent = label;
   document.getElementById('batch-progress-status').textContent = status;
   document.getElementById('batch-progress').classList.add('open');
 }
-
-function updateBatchProgress(status) {
+function updBatchProg(status) {
   const el = document.getElementById('batch-progress-status');
   if (el) el.textContent = status;
 }
-
-function hideBatchProgress() {
+function hideBatchProg() {
   document.getElementById('batch-progress').classList.remove('open');
 }
 
@@ -481,7 +482,7 @@ function searchDebounced() {
   searchTimer = setTimeout(doSearch, 300);
 }
 
-function cleanQuery(raw) {
+function cleanQ(raw) {
   let q = (raw || '').trim();
   q = q.replace(/\.(mkv|mp4|avi|mov|m4v|wmv|flv|ts)$/i, '');
   q = q.replace(/[._\-]+/g, ' ');
@@ -492,7 +493,7 @@ function cleanQuery(raw) {
 
 async function doSearch() {
   const raw = document.getElementById('search-input').value.trim();
-  const q = cleanQuery(raw);
+  const q = cleanQ(raw);
   const container = document.getElementById('search-results');
   if (!q || !raw) {
     container.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:0.85rem;"><i class="fa-solid fa-search" style="font-size:1.5rem;"></i><br>Type to search…</div>';
@@ -501,14 +502,13 @@ async function doSearch() {
   container.innerHTML = '<div class="empty-state" style="padding:1rem;"><i class="fa-solid fa-spinner fa-spin"></i><br>Searching…</div>';
 
   try {
-    const [movieResp, tvResp] = await Promise.all([
+    const [mR, tR] = await Promise.all([
       fetch(`/api/media/rescan/search?media_type=movie&query=${encodeURIComponent(q)}`),
       fetch(`/api/media/rescan/search?media_type=tv&query=${encodeURIComponent(q)}`),
     ]);
-    const movieJson = await movieResp.json();
-    const tvJson = await tvResp.json();
-    const movieResults = (movieJson.results || []).map(r => ({ ...r, _media_type: 'movie' }));
-    const tvResults = (tvJson.results || []).map(r => ({ ...r, _media_type: 'tv' }));
+    const mJ = await mR.json(), tJ = await tR.json();
+    const movieResults = (mJ.results || []).map(r => ({ ...r, _t: 'movie' }));
+    const tvResults = (tJ.results || []).map(r => ({ ...r, _t: 'tv' }));
     const seen = new Set();
     const merged = [];
     for (const r of [...movieResults, ...tvResults]) {
@@ -517,15 +517,15 @@ async function doSearch() {
       seen.add(key);
       merged.push(r);
     }
-    renderSearchResults(merged);
+    renderResults(merged);
   } catch (e) {
     container.innerHTML = `<div class="empty-state" style="padding:1rem;color:#ef4444;font-size:0.85rem;"><i class="fa-solid fa-exclamation-triangle"></i><br>${esc(e.message)}</div>`;
   }
 }
 
-function renderSearchResults(results) {
+function renderResults(results) {
   const container = document.getElementById('search-results');
-  if (!results || results.length === 0) {
+  if (!results || !results.length) {
     container.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:0.85rem;"><i class="fa-solid fa-ban"></i><br>No results.</div>';
     return;
   }
@@ -534,13 +534,13 @@ function renderSearchResults(results) {
     const poster = r.poster || '';
     const title = r.title || '?';
     const year = r.year || '';
-    const overrideId = r.tmdb_id || r.imdb_id || '';
-    const mediaLabel = r._media_type === 'movie' ? '🎬 Movie' : '📺 TV';
-    html += `<div class="search-result" onclick="selectResult('${overrideId}', this)">
+    const oid = r.tmdb_id || r.imdb_id || '';
+    const label = r._t === 'movie' ? '🎬 Movie' : '📺 TV';
+    html += `<div class="search-result" onclick="pickResult('${oid}', this)">
       ${poster ? `<img src="${esc(poster)}" alt="" loading="lazy">` : '<div style="width:36px;height:52px;border-radius:0.35rem;background:var(--border-color,rgba(255,255,255,0.08));flex-shrink:0;"></div>'}
       <div class="info">
         <div class="title">${esc(title)}</div>
-        <div class="meta">${mediaLabel}${year ? ' · ' + year : ''}</div>
+        <div class="meta">${label}${year ? ' · ' + year : ''}</div>
       </div>
       <i class="fa-solid fa-check" style="color:#22c55e;display:none;"></i>
     </div>`;
@@ -548,7 +548,7 @@ function renderSearchResults(results) {
   container.innerHTML = html;
 }
 
-function selectResult(id, el) {
+function pickResult(id, el) {
   document.querySelectorAll('.search-result').forEach(r => {
     r.classList.remove('selected');
     const icon = r.querySelector('.fa-check');
@@ -562,20 +562,20 @@ function selectResult(id, el) {
 
 // ── Utilities ──────────────────────────────────────────────────────────────
 
-function showToast(msg, type) {
+function toast(msg, type) {
   const el = document.createElement('div');
   el.className = `toast toast-${type}`;
   el.textContent = msg;
   document.body.appendChild(el);
-  setTimeout(() => { el.remove(); }, 3500);
+  setTimeout(() => el.remove(), 3500);
   el.onclick = () => el.remove();
 }
 
-function formatSize(bytes) {
+function fmtSize(bytes) {
   if (!bytes || bytes === 0) return '—';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+  return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + u[i];
 }
 
 function esc(s) {
@@ -586,5 +586,6 @@ function esc(s) {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 loadSkipped();
+document.addEventListener('keydown', e => { if (e.key === 'Escape') clearSelection(); });
 </script>
 {% endblock %}
