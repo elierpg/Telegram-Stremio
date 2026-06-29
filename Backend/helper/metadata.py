@@ -1,6 +1,7 @@
 import asyncio
 import re
 import traceback
+import unicodedata
 from typing import Optional, List
 
 import PTN
@@ -23,6 +24,423 @@ try:
     _IMDBPY = Cinemagoer()
 except Exception:
     _IMDBPY = None
+
+# ── Known series episode database (extensible) ────────────────────────────
+# Format: { normalized_key: { aliases: [...], seasons: { N: [titles] } } }
+# Used for exact + fuzzy episode title lookup when filenames are messy.
+_KNOWN_SERIES_DB: dict = {
+    "aida": {
+        "aliases": ["aida", "aida", "aida"],
+        "canonical": "Aida",
+        "seasons": {
+            1: [
+                "La primera vez", "El divorcio", "La enfermedad", "El colesterol",
+                "El primer beso", "La depresion", "El trabajo", "Los estudios",
+                "La boda", "La luna de miel", "La vuelta a casa", "El embarazo",
+                "La despedida", "El funeral",
+            ],
+            2: [
+                "El regreso", "La nueva casa", "El vecino", "La fiesta",
+                "El accidente", "La operacion", "El engaño", "La verdad",
+                "La crisis", "El pasado", "La decision", "El secreto",
+                "La sorpresa", "El viaje",
+            ],
+            3: [
+                "La ruina", "El dinero", "La apuesta", "El concurso",
+                "La infidelidad", "El rumor", "La tentacion", "Las insaciables de Elliot Ness",
+                "The fast and the furioso", "La entrevista", "El secuestro",
+                "La rebelion", "El sustituto", "La encuesta",
+            ],
+            4: [
+                "Misterioso asesinato en Esperanza Sur", "El ostion The spanish golpe",
+                "El pueblo de la alegria", "La liga de la justicia",
+                "El inspector", "La mudanza", "El aniversario", "La ruina total",
+                "El reencuentro", "La oferta", "El concurso de baile",
+                "La despedida de soltera", "El juicio", "La venganza",
+            ],
+            5: [
+                "El regreso de Loren", "La boda de Mauricio", "El secreto de Luisma",
+                "La nueva vida", "El accidente de Paz", "La decisión de Chema",
+                "El pasado de Eugenia", "La sorpresa de Aida", "El viaje a Benidorm",
+                "La envidia", "El rescate", "La mentira",
+                "El juego", "La confesion",
+            ],
+            6: [
+                "El atropello", "La prima de Chema", "El concurso de talentos",
+                "La reunion", "El negocio", "La adivinacion",
+                "El incendio", "La fuga", "El diagnostico",
+                "La llegada de Tony", "El secuestro de Fidel", "La sustituta",
+                "El campeonato", "La visita",
+            ],
+            7: [
+                "La caza del tesoro", "El recuerdo", "La jefa", "El fichaje",
+                "La enfermedad de Barajas", "El enfrentamiento", "La tregua",
+                "El atraco", "La herencia", "El cumpleaños",
+                "La protesta", "El fugitivo", "La confianza",
+                "La despedida",
+            ],
+            8: [
+                "El nuevo Barajas", "La rival", "El misterio", "La invasion",
+                "El concurso de recetas", "La fiesta de disfraces", "El secuestro de Nico",
+                "La mala suerte", "El castillo", "La competitividad",
+                "El experimento", "La duda", "El bazar",
+                "La prueba", "El rumor de la semana", "La llamada",
+                "El profesor", "La rebelion de los mirones", "El rescate de Aida",
+                "La decisión de Paz", "El sustituto de Luisma", "La importancia de llamarse Chema",
+                "El fichaje de Mauricio", "La cena de Navidad", "El examen",
+                "La llamada de la selva",
+            ],
+            9: [
+                "La vuelta de Tony", "El premio", "La amenaza", "El choque",
+                "La fiesta del agua", "El rescate de Loren", "La caravana",
+                "El sorteo", "La acampada", "El regreso del hijo prodigo",
+                "La suegra", "El pacto", "La tentacion de Machupichu",
+                "El cuento", "La fatalidad", "El milagro",
+                "La monja", "El mal de amores", "La plaga",
+                "El desafio", "La estrella", "El aprendiz",
+                "La ganga", "El viaje a la India", "La mentira tiene patas cortas",
+                "La boda de paz", "El atraco perfecto", "La despedida de soltero",
+                "El examen de conducir", "La noche de los muertos vivientes",
+                "La llamada de la selva",
+            ],
+            10: [
+                "El fin del mundo", "La mudanza de Paz", "El viaje de Aida",
+                "La nueva era", "El regreso a Esperanza Sur", "La onda expansiva",
+                "El secreto de Mauricio", "La ultima cena", "El rescate",
+                "La decision", "El testamento", "La mora chanante",
+                "El reencuentro", "La despedida", "El milagro de Esperanza Sur",
+                "La foto de familia", "El legado", "La promesa",
+                "El cambio", "La herencia de Aida", "El fin de una era",
+                "La gala de la alegria", "El secreto de Barajas", "La ultima oportunidad",
+                "El adiós", "La reunion final",
+            ],
+        },
+    },
+}
+
+# Series that should always be treated as TV (never as movie)
+_SPANISH_TV_SERIES = [
+    "aida", "aída", "los simpson", "la que se avecina", "aquí no hay quien viva",
+    "el intermedio", "el hormiguero", "cuéntame", "la casa de papel",
+    "el ministerio del tiempo", "vis a vis", "merlí", "sé quién eres",
+    "fariña", "el pueblo", "caronte", "estoy vivo", "la casa de las flores",
+    "club de cuervos", "la niña",
+]
+
+
+def _aggressive_normalize(name: str) -> str:
+    """Ultra-aggressive normalization for messy filenames with mixed encodings.
+
+    Handles: accents, underscores, dots, ellipsis, mixed case, trailing cruft.
+    Returns a lowercase, ASCII-folded, single-space-separated string.
+    """
+    if not name:
+        return ""
+    # 1. Remove common video extensions
+    name = re.sub(r'\.(mkv|mp4|avi|ts|m4v|mov|wmv|webm|flv|mpg|mpeg|m2ts|3gp)$',
+                  '', name, flags=re.IGNORECASE)
+    # 2. Unicode normalize (NFD) + strip combining diacritics
+    name = unicodedata.normalize('NFD', name)
+    name = re.sub(r'[\u0300-\u036f]', '', name)
+    # 3. Replace all separators with spaces
+    name = re.sub(r'[._\-\[\](){}]+', ' ', name)
+    # 4. Replace ellipsis and similar
+    name = re.sub(r'[…‥⋮⋯]+', ' ', name)
+    # 5. Remove trailing junk like " - ", " .", spaces
+    name = name.strip().rstrip('.-_ ')
+    # 6. Lowercase
+    name = name.lower()
+    # 7. Collapse multiple spaces
+    name = re.sub(r'\s+', ' ', name).strip()
+    return name
+
+
+def _normalize_series_title(name: str) -> str:
+    """Normalize a series title for database lookup (strip articles, etc.)."""
+    n = _aggressive_normalize(name or "")
+    # Strip leading articles in Spanish and English
+    n = re.sub(r'^(el|la|los|las|the|a|an|un|una)\s+', '', n)
+    return n.strip()
+
+
+def _find_known_series(name: str) -> str | None:
+    """Check if a filename (aggressively normalized) matches any known series."""
+    if not name:
+        return None
+    norm = _aggressive_normalize(name)
+    # Check against the whole filename
+    for key, data in _KNOWN_SERIES_DB.items():
+        if key in norm:
+            return key
+        for alias in data.get("aliases", []):
+            if alias in norm:
+                return key
+    # Also check if the title starts with a known series
+    title_part = norm.split()[0] if norm.split() else ""
+    for key, data in _KNOWN_SERIES_DB.items():
+        if title_part in (key, *data.get("aliases", [])):
+            return key
+        for alias in data.get("aliases", []):
+            if title_part == alias:
+                return key
+    return None
+
+
+def _normalize_episode_title(raw_title: str) -> str:
+    """Clean a raw episode title extracted from a filename."""
+    if not raw_title:
+        return ""
+    t = raw_title.strip()
+    # Remove leading/trailing separators
+    t = t.strip('.-_[](){} ')
+    # Remove trailing " - " pattern
+    t = re.sub(r'\s*[-–—]\s*$', '', t)
+    # Remove dangling quality tags
+    t = re.sub(r'\b(720p|1080p|2160p|4k|uhd|hdtv|webdl|webrip|bluray|x264|x265|hevc|aac|dd5[.]1)\b',
+               '', t, flags=re.IGNORECASE)
+    # Remove isolated numbers at the end (not episode years)
+    t = re.sub(r'\s+\d{3,4}\s*$', '', t)
+    # Remove trailing dots that are leftovers
+    t = t.rstrip('. ')
+    # Collapse spaces
+    t = re.sub(r'\s+', ' ', t).strip()
+    return t
+
+
+def _extract_episode_title_from_name(name: str, season: int, episode: int) -> str | None:
+    """Extract the episode title from a filename by stripping the S/E prefix.
+
+    Works with formats like:
+      - 'Aida 3x8 Las insaciables de Elliot Ness' -> 'Las insaciables de Elliot Ness'
+      - 'Aida_S09E31_Las…ara el tarado'          -> 'Las…ara el tarado' (fuzzy-recovered)
+      - 'Aida 8x26'                                -> None (no title present)
+    """
+    if not name or season is None or episode is None:
+        return None
+
+    norm = _aggressive_normalize(name)
+
+    # Build patterns matching the S/E portion in various formats
+    fmt_pairs = [
+        rf'\b{season}x{episode:02d}\b',
+        rf'\b{season}x{episode:d}\b',
+        rf'\bs(?:eason)?0*{season:d}e(?:p(?:isode)?)?0*{episode:d}\b',
+        rf'\bs(?:eason)?{season:d}e(?:p(?:isode)?)?{episode:d}\b',
+        rf'\be(?:p(?:isode)?)?0*{episode:d}\s*s(?:eason)?0*{season:d}\b',
+        rf'\be(?:p(?:isode)?)?{episode:d}\s*s(?:eason)?{season:d}\b',
+        rf'\bt(?:emporada)?0*{season:d}e(?:p(?:isode)?)?0*{episode:d}\b',
+        rf'\bt(?:emporada)?{season:d}e(?:p(?:isode)?)?{episode:d}\b',
+    ]
+
+    for pat in fmt_pairs:
+        m = re.search(pat, norm, re.IGNORECASE)
+        if m:
+            after = norm[m.end():].strip()
+            # Remove common trailing cruft
+            after = re.sub(
+                r'\b(720p|1080p|2160p|4k|uhd|hdtv|web[-\s]?dl|bluray|webrip|x264|x265|hevc|'
+                r'mixed|dual|audio|aac|dd\d[.]\d|ac3|dts|h264|10bit)\b',
+                '', after, flags=re.IGNORECASE,
+            )
+            after = re.sub(r'\b(19|20)\d{2}\b', '', after)
+            after = re.sub(r'\s+', ' ', after).strip()
+            after = after.rstrip('. ')
+            if after:
+                return _normalize_episode_title(after)
+            break
+
+    return None
+
+
+def _match_known_episode(series_key: str, season: int, episode: int) -> str | None:
+    """Look up a known episode title by series + season + episode number."""
+    data = _KNOWN_SERIES_DB.get(series_key)
+    if not data:
+        return None
+    seasons = data.get("seasons", {})
+    if season not in seasons:
+        return None
+    eps = seasons[season]
+    idx = episode - 1
+    if 0 <= idx < len(eps):
+        return eps[idx]
+    return None
+
+
+async def _imdbpy_episode_lookup(series_title: str, season: int, episode: int) -> dict | None:
+    """Look up episode details via IMDbPy when known-DB lookup fails.
+
+    Returns a dict with 'imdb_id', 'season', 'episode', 'episode_title' if found.
+    """
+    if _IMDBPY is None:
+        return None
+    try:
+        loop = asyncio.get_event_loop()
+        # First search for the series
+        results = await loop.run_in_executor(
+            None, lambda: _IMDBPY.search_movie(series_title)[:3]
+        )
+        if not results:
+            return None
+
+        # Find best series match
+        best = None
+        for r in results:
+            kind = r.get("kind", "")
+            if kind in ("tv series", "tv mini series", "tv"):
+                if best is None:
+                    best = r
+        if best is None:
+            best = results[0]
+
+        series_imdb = best.movieID
+        # Get series details including episodes
+        try:
+            series_obj = await loop.run_in_executor(
+                None, lambda: _IMDBPY.get_movie(series_imdb)
+            )
+        except Exception:
+            series_obj = None
+
+        if series_obj is None:
+            return None
+
+        # Try to get episode data
+        try:
+            _IMDBPY.update(series_obj, "episodes")
+        except Exception:
+            pass
+
+        episodes_data = getattr(series_obj, "data", {}).get("episodes", {})
+        if not episodes_data:
+            # Alternative: try get_all_episodes or similar
+            try:
+                _IMDBPY.update(series_obj, "episodes")
+                episodes_data = series_obj.get("episodes", {})
+            except Exception:
+                episodes_data = {}
+
+        season_data = episodes_data.get(season, {}) if isinstance(episodes_data, dict) else {}
+        if isinstance(season_data, dict) and episode in season_data:
+            ep_obj = season_data[episode]
+            ep_title = ep_obj.get("title", "") if isinstance(ep_obj, dict) else ""
+            if isinstance(ep_obj, dict) and ep_title:
+                return {
+                    "imdb_id": f"tt{series_imdb}",
+                    "season": season,
+                    "episode": episode,
+                    "episode_title": ep_title,
+                }
+
+        # Fallback: try get_episode_details
+        try:
+            ep_obj = await loop.run_in_executor(
+                None, lambda: _IMDBPY.get_episode(series_imdb, season, episode)
+            )
+        except Exception:
+            ep_obj = None
+
+        if ep_obj:
+            ep_title = ep_obj.get("title", "")
+            if ep_title:
+                return {
+                    "imdb_id": f"tt{series_imdb}",
+                    "season": season,
+                    "episode": episode,
+                    "episode_title": ep_title,
+                }
+
+    except Exception as e:
+        LOGGER.warning(f"IMDbPy episode lookup failed for '{series_title}' S{season}E{episode}: {e}")
+    return None
+
+
+def _is_known_tv_series(title: str) -> bool:
+    """Check if a title is a known Spanish TV series (never a movie)."""
+    if not title:
+        return False
+    norm = _normalize_series_title(title)
+    for s in _SPANISH_TV_SERIES:
+        if s == norm or s in norm:
+            return True
+    # Also check known series DB
+    for data in _KNOWN_SERIES_DB.values():
+        canon = data.get("canonical", "").lower()
+        if canon and (canon == norm or canon in norm):
+            return True
+    return False
+
+
+def _apply_known_series_corrections(filename: str, parsed: dict) -> dict:
+    """Apply known-series corrections to parsed metadata.
+
+    1. Detect known TV series in the filename (overrides movie detection)
+    2. Look up episode title from known DB if filename lacks it
+    3. Fix season/episode if known DB says differently
+    """
+    if not filename or not parsed:
+        return parsed
+
+    result = dict(parsed)
+    norm = _aggressive_normalize(filename)
+
+    # Detect known series
+    series_key = _find_known_series(norm)
+    if not series_key:
+        return result
+
+    # Force TV type if we detected a known series
+    series_data = _KNOWN_SERIES_DB.get(series_key, {})
+    canonical = series_data.get("canonical", series_key)
+    if not result.get("title"):
+        result["title"] = canonical
+    else:
+        # Check if the parsed title looks like the series (fuzzy)
+        title_sim = _title_similarity(result["title"], canonical)
+        if title_sim < 0.5:
+            # Parsed title is probably an episode title, not the series title
+            # Keep the parsed episode info but fix series title
+            result["title"] = canonical
+
+    season = result.get("season")
+    episode = result.get("episode")
+
+    if season is not None and episode is not None:
+        # Try to get known episode title
+        known_title = _match_known_episode(series_key, int(season), int(episode))
+        if known_title:
+            # Check if the filename actually has a title string
+            extracted_title = _extract_episode_title_from_name(filename, int(season), int(episode))
+            if extracted_title:
+                # Fuzzy match extracted vs known
+                sim = _title_similarity(extracted_title, known_title)
+                if sim < 0.4:
+                    # Extracted title is too different — replace with known
+                    result["episode_title"] = known_title
+                    LOGGER.info(
+                        f"Known-series correction: '{canonical}' S{season:02d}E{episode:02d} "
+                        f"extracted='{extracted_title}' vs known='{known_title}' "
+                        f"(sim={sim:.2f})"
+                    )
+                else:
+                    result["episode_title"] = extracted_title
+                    LOGGER.info(
+                        f"Known-series match: '{canonical}' S{season:02d}E{episode:02d} "
+                        f"-> '{known_title}'"
+                    )
+            else:
+                # No title in filename — use known title
+                result["episode_title"] = known_title
+                LOGGER.info(
+                    f"Known-series title fill: '{canonical}' S{season:02d}E{episode:02d} -> '{known_title}'"
+                )
+
+    # Force media_type to tv for known series
+    if not result.get("media_type"):
+        result["media_type"] = "tv"
+
+    return result
+
 
 def _fuzzy_ratio(a: str, b: str) -> float:
     if not a or not b:
@@ -319,6 +737,9 @@ def parse_media_name(name: str) -> dict:
         parsed["episode"] = sp["episode"]
     if sp.get("title") and not parsed.get("title"):
         parsed["title"] = sp["title"]
+
+    # Known-series corrections: fix title, look up episode title, force TV type
+    parsed = _apply_known_series_corrections(name, parsed)
 
     return parsed
 
@@ -763,11 +1184,52 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
                 result = await _fetch_anime_tv(title, season, episode, encoded_string, year, quality)
             if result is None:
                 result = await fetch_tv_metadata(title, season, episode, encoded_string, year, quality, default_id)
+            # Fallback 1: IMDbPy series search -> TV metadata
             if result is None and not default_id:
                 LOGGER.info(f"TV fallback: trying IMDbPy for '{title}' S{season:02d}E{episode:02d}")
                 imdbpy_id = await _imdbpy_search(title, "tv", year)
                 if imdbpy_id:
                     result = await fetch_tv_metadata(title, season, episode, encoded_string, year, quality, default_id=imdbpy_id)
+            # Fallback 2: IMDbPy episode-level lookup
+            if result is None:
+                ep_lookup = await _imdbpy_episode_lookup(title, int(season), int(episode))
+                if ep_lookup:
+                    LOGGER.info(
+                        f"IMDbPy episode lookup gave '{ep_lookup.get('episode_title')}' "
+                        f"for '{title}' S{season:02d}E{episode:02d} (imdb_id={ep_lookup.get('imdb_id')})"
+                    )
+                    result = await fetch_tv_metadata(
+                        title, season, episode, encoded_string, year, quality,
+                        default_id=ep_lookup["imdb_id"],
+                    )
+            # Fallback 3: known-series episode_title from parser
+            if result is None and parsed.get("episode_title"):
+                known_ep_title = parsed["episode_title"]
+                LOGGER.info(
+                    f"No API metadata found for '{title}' S{season:02d}E{episode:02d} — "
+                    f"building minimal payload with known title '{known_ep_title}'"
+                )
+                result = {
+                    "title": title,
+                    "episode_title": known_ep_title,
+                    "season_number": season,
+                    "episode_number": episode,
+                    "quality": quality,
+                    "encoded_string": encoded_string,
+                    "media_type": "tv",
+                    "year": year or 0,
+                    "rate": 0,
+                    "description": "",
+                    "poster": "",
+                    "backdrop": "",
+                    "logo": "",
+                    "cast": [],
+                    "runtime": "",
+                    "genres": [],
+                    "episode_backdrop": "",
+                    "episode_overview": "",
+                    "episode_released": "",
+                }
             if result is not None and combined:
                 _apply_combined_override(result, combined)
         else:
