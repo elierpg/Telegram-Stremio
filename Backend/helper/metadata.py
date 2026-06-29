@@ -687,10 +687,12 @@ def _spanish_parse(name: str) -> dict:
 
     lower = name.lower()
 
-    # ── Pattern A: E01S01 / Ep01S01 / Episodio01Temporada01 ──────────────
+    # ── Pattern A: E01S01 / E1S1 / Ep01S01 / Episodio01Temporada01 ──────
+    # Accepts zero-or-more separator between episode number and season prefix
+    # so both "E1 S1" and "E1S1" (compact, no space) are matched.
     m = re.search(
         r'(?:E|Ep|Episodio)[\s._-]*(\d{1,3})'
-        r'[\s._-]+'
+        r'[\s._-]*'
         r'(?:S|Season|T|Temporada)[\s._-]*(\d{1,2})',
         name, re.IGNORECASE,
     )
@@ -728,7 +730,7 @@ def _spanish_parse(name: str) -> dict:
         # Find where the season/ep pattern starts
         se_positions = []
         for pat in [
-            r'(?:E|Ep|Episodio)[\s._-]*\d{1,3}[\s._-]+(?:S|Season|T|Temporada)[\s._-]*\d{1,2}',
+            r'(?:E|Ep|Episodio)[\s._-]*\d{1,3}[\s._-]*(?:S|Season|T|Temporada)[\s._-]*\d{1,2}',
             r'(?:(?:S|Season|T|Temporada)[\s._-]*)?\d{1,2}[\s._]*[xX][\s._]*(?:E|Ep|Episodio|Capitulo)?[\s._]*\d{1,3}',
             r'(?:T|Temporada)[\s._-]*\d{1,2}[\s._-]+(?:E|Ep|Episodio|Capitulo)[\s._-]*\d{1,3}',
         ]:
