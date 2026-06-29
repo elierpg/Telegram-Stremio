@@ -1,3 +1,4 @@
+import unicodedata
 from pyrogram.file_id import FileId
 from typing import Optional
 from Backend.logger import LOGGER
@@ -138,17 +139,21 @@ def clean_filename(filename: str) -> str:
     # 2 – Remove decorative unicode symbols
     filename = _DECORATION_PATTERN.sub(" ", filename)
 
-    # 3 – Replace any remaining non-ASCII characters with a space.
-    #     Keep standard filename-safe characters: alphanumerics, . - _ ( ) [ ] ' " , : ! ? & + @
+    # 3 – Unicode normalize: decompose accented chars so we can strip diacritics
+    #     e.g. "José" → "Jose", "acción" → "accion", "télé" → "tele"
+    filename = unicodedata.normalize('NFD', filename)
+    filename = re.sub(r'[\u0300-\u036f]', '', filename)
+
+    # 4 – Replace any remaining non-ASCII characters with a space.
     filename = re.sub(r"[^\x20-\x7E]", " ", filename)
 
-    # 4 – Remove Telegram channel tags  (@ChannelName_ etc.)
+    # 5 – Remove Telegram channel tags  (@ChannelName_ etc.)
     filename = _CHANNEL_TAG_PATTERN.sub("", filename)
 
-    # 5 – Remove codec / source tags that clutter the title region
+    # 6 – Remove codec / source tags that clutter the title region
     filename = _CODEC_TAG_PATTERN.sub(" ", filename)
 
-    # 6 – Collapse multiple spaces; remove space before extension dot
+    # 7 – Collapse multiple spaces; remove space before extension dot
     filename = re.sub(r"\s+", " ", filename).strip().replace(" .", ".")
 
     return filename if filename else "unknown_file"

@@ -17,6 +17,13 @@ from rapidfuzz import fuzz
 from guessit import guessit as _guessit
 from difflib import SequenceMatcher
 
+# IMDbPy fallback (optional — import failure is non-fatal)
+try:
+    from imdb import Cinemagoer
+    _IMDBPY = Cinemagoer()
+except Exception:
+    _IMDBPY = None
+
 def _fuzzy_ratio(a: str, b: str) -> float:
     if not a or not b:
         return 0.0
@@ -204,6 +211,79 @@ def _build_query_variants(title: str, year: Optional[int] = None) -> List[str]:
 def _first(value):
     return value[0] if isinstance(value, list) else value
 
+def _spanish_parse(name: str) -> dict:
+    """Parse Spanish / alternative filename formats that PTN or guessit may miss.
+
+    Handles:
+      - 1x01, 01x01, 1X01, 01X01
+      - E01S01, E1S1, Ep01S01 (episode-first order)
+      - T01E01 / Temporada 1 Episodio 1 / Capitulo 1
+      - Season/Episode followed by an episode title in the filename
+      - Various separators: spaces, dots, underscores, bars
+    """
+    result = {}
+    if not name:
+        return result
+
+    lower = name.lower()
+
+    # ── Pattern A: E01S01 / Ep01S01 / Episodio01Temporada01 ──────────────
+    m = re.search(
+        r'(?:E|Ep|Episodio)[\s._-]*(\d{1,3})'
+        r'[\s._-]+'
+        r'(?:S|Season|T|Temporada)[\s._-]*(\d{1,2})',
+        name, re.IGNORECASE,
+    )
+    if m:
+        result['episode'] = int(m.group(1))
+        result['season'] = int(m.group(2))
+
+    # ── Pattern B: 1x01, 01x01, Temporada 1 x Episodio 01 ────────────────
+    if 'season' not in result:
+        m = re.search(
+            r'(?:(?:S|Season|T|Temporada)[\s._-]*)?'
+            r'(\d{1,2})[\s._]*[xX][\s._]*'
+            r'(?:E|Ep|Episodio|Capitulo)?[\s._]*'
+            r'(\d{1,3})',
+            name, re.IGNORECASE,
+        )
+        if m:
+            result['season'] = int(m.group(1))
+            result['episode'] = int(m.group(2))
+
+    # ── Pattern C: Temporada 1 Capitulo 1 (full Spanish words) ──────────
+    if 'season' not in result:
+        m = re.search(
+            r'(?:T|Temporada)[\s._-]*(\d{1,2})'
+            r'[\s._-]+'
+            r'(?:E|Ep|Episodio|Capitulo)[\s._-]*(\d{1,3})',
+            name, re.IGNORECASE,
+        )
+        if m:
+            result['season'] = int(m.group(1))
+            result['episode'] = int(m.group(2))
+
+    # ── Extract title: everything before the matched pattern ─────────────
+    if 'season' in result and not result.get('title'):
+        # Find where the season/ep pattern starts
+        se_positions = []
+        for pat in [
+            r'(?:E|Ep|Episodio)[\s._-]*\d{1,3}[\s._-]+(?:S|Season|T|Temporada)[\s._-]*\d{1,2}',
+            r'(?:(?:S|Season|T|Temporada)[\s._-]*)?\d{1,2}[\s._]*[xX][\s._]*(?:E|Ep|Episodio|Capitulo)?[\s._]*\d{1,3}',
+            r'(?:T|Temporada)[\s._-]*\d{1,2}[\s._-]+(?:E|Ep|Episodio|Capitulo)[\s._-]*\d{1,3}',
+        ]:
+            match = re.search(pat, name, re.IGNORECASE)
+            if match:
+                se_positions.append(match.start())
+        if se_positions:
+            cut = min(se_positions)
+            title_candidate = name[:cut].strip().rstrip('.-_ []()')
+            if title_candidate:
+                result['title'] = title_candidate
+
+    return result
+
+
 def parse_media_name(name: str) -> dict:
     try:
         ptn = PTN.parse(name) or {}
@@ -230,6 +310,15 @@ def parse_media_name(name: str) -> dict:
             parsed["quality"] = parsed["quality"] or _first(g.get("screen_size"))
         except Exception as e:
             LOGGER.warning(f"GuessIt parsing failed for {name}: {e}")
+
+    # Spanish/alternative format parser — fills what PTN + guessit missed
+    sp = _spanish_parse(name)
+    if sp.get("season") is not None and parsed.get("season") is None:
+        parsed["season"] = sp["season"]
+    if sp.get("episode") is not None and parsed.get("episode") is None:
+        parsed["episode"] = sp["episode"]
+    if sp.get("title") and not parsed.get("title"):
+        parsed["title"] = sp["title"]
 
     return parsed
 
@@ -649,8 +738,8 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
         combined = {"season": season, "start": None, "end": None}
         episode = 1
     if not quality:
-        LOGGER.warning(f"Skipping {filename}: No resolution (parsed={parsed})")
-        return None
+        quality = "Unknown"
+        LOGGER.info(f"No resolution found for {filename}, using 'Unknown' (parsed={parsed})")
     if not title:
         LOGGER.info(f"No title parsed from: {filename} (parsed={parsed})")
         return None
@@ -674,6 +763,11 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
                 result = await _fetch_anime_tv(title, season, episode, encoded_string, year, quality)
             if result is None:
                 result = await fetch_tv_metadata(title, season, episode, encoded_string, year, quality, default_id)
+            if result is None and not default_id:
+                LOGGER.info(f"TV fallback: trying IMDbPy for '{title}' S{season:02d}E{episode:02d}")
+                imdbpy_id = await _imdbpy_search(title, "tv", year)
+                if imdbpy_id:
+                    result = await fetch_tv_metadata(title, season, episode, encoded_string, year, quality, default_id=imdbpy_id)
             if result is not None and combined:
                 _apply_combined_override(result, combined)
         else:
@@ -683,6 +777,11 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
                 result = await _fetch_anime_movie(title, encoded_string, year, quality)
             if result is None:
                 result = await fetch_movie_metadata(title, encoded_string, year, quality, default_id)
+            if result is None and not default_id:
+                LOGGER.info(f"Movie fallback: trying IMDbPy for '{title}' (year={year})")
+                imdbpy_id = await _imdbpy_search(title, "movie", year)
+                if imdbpy_id:
+                    result = await fetch_movie_metadata(title, encoded_string, year, quality, default_id=imdbpy_id)
         if result is not None:
             if anime_channel:
                 result["is_anime"] = True
@@ -705,6 +804,46 @@ def _resolve_default_id(override_id, filename) -> str | None:
             found = None
         if found:
             return found
+    return None
+
+
+# ── IMDbPy fallback (used when Cinemeta + TMDb both fail) ────────────────
+
+async def _imdbpy_search(title: str, media_type: str, year: int | None = None) -> str | None:
+    """Search IMDb via IMDbPy (cinemagoer) as a last-resort fallback."""
+    if _IMDBPY is None:
+        return None
+    try:
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(
+            None, lambda: _IMDBPY.search_movie(title)[:5]
+        )
+        if not results:
+            return None
+        best = None
+        best_score = 0.0
+        for r in results:
+            r_title = r.get("title", "")
+            r_year = r.get("year")
+            score = _title_similarity(title, r_title)
+            if year and r_year:
+                diff = abs(int(year) - int(r_year))
+                if diff > 2:
+                    score *= 0.5
+                elif diff == 0:
+                    score *= 1.2
+            if score > best_score:
+                best_score = score
+                best = r
+        if best and best_score >= _CINEMETA_THRESHOLD:
+            imdb_id = best.movieID
+            LOGGER.info(
+                f"IMDbPy fallback match: '{title}' -> '{best.get('title')}' "
+                f"(id=tt{imdb_id}, score={best_score:.2f})"
+            )
+            return f"tt{imdb_id}"
+    except Exception as e:
+        LOGGER.warning(f"IMDbPy search failed for '{title}': {e}")
     return None
 
 

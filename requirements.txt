@@ -14,3 +14,4 @@ uvicorn
 uv
 uvloop
 httptools
+cinemagoer>=2023.5.1
