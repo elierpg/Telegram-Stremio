@@ -118,6 +118,26 @@ _KNOWN_SERIES_DB: dict = {
     },
 }
 
+# Emoji pattern (mirrors the one in pyro.py — used in _aggressive_normalize for DB matching)
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"
+    "\U0001F300-\U0001F5FF"
+    "\U0001F680-\U0001F6FF"
+    "\U0001F700-\U0001FAFF"
+    "\U00002702-\U000027B0"
+    "\U000024C2-\U0001F251"
+    "\u2600-\u26FF"
+    "\u2700-\u27BF"
+    "\uFE00-\uFE0F"
+    "\U0001F1E0-\U0001F1FF"
+    "]+",
+    re.UNICODE,
+)
+
+# Hashtag pattern (#word → stripped before matching)
+_HASHTAG_RE = re.compile(r"#\w+")
+
 # Series that should always be treated as TV (never as movie)
 _SPANISH_TV_SERIES = [
     "aida", "aída", "los simpson", "la que se avecina", "aquí no hay quien viva",
@@ -139,18 +159,22 @@ def _aggressive_normalize(name: str) -> str:
     # 1. Remove common video extensions
     name = re.sub(r'\.(mkv|mp4|avi|ts|m4v|mov|wmv|webm|flv|mpg|mpeg|m2ts|3gp)$',
                   '', name, flags=re.IGNORECASE)
-    # 2. Unicode normalize (NFD) + strip combining diacritics
+    # 2. Strip emojis
+    name = _EMOJI_RE.sub(' ', name)
+    # 3. Strip hashtags (never part of a title)
+    name = _HASHTAG_RE.sub(' ', name)
+    # 4. Unicode normalize (NFD) + strip combining diacritics
     name = unicodedata.normalize('NFD', name)
     name = re.sub(r'[\u0300-\u036f]', '', name)
-    # 3. Replace all separators with spaces
+    # 5. Replace all separators with spaces
     name = re.sub(r'[._\-\[\](){}]+', ' ', name)
-    # 4. Replace ellipsis and similar
+    # 6. Replace ellipsis and similar
     name = re.sub(r'[…‥⋮⋯]+', ' ', name)
-    # 5. Remove trailing junk like " - ", " .", spaces
+    # 7. Remove trailing junk like " - ", " .", spaces
     name = name.strip().rstrip('.-_ ')
-    # 6. Lowercase
+    # 8. Lowercase
     name = name.lower()
-    # 7. Collapse multiple spaces
+    # 9. Collapse multiple spaces
     name = re.sub(r'\s+', ' ', name).strip()
     return name
 
@@ -442,6 +466,24 @@ def _apply_known_series_corrections(filename: str, parsed: dict) -> dict:
     return result
 
 
+def _preprocess_raw_name(name: str) -> str:
+    """Clean raw input text before metadata parsing.
+
+    Handles text that may not have gone through pyro.clean_filename():
+    - Strips emojis
+    - Strips hashtags (#word → empty)
+    - Strips Spanish subtitle/filler words
+    - Collapses whitespace (including newlines)
+    """
+    if not name:
+        return ""
+    name = _EMOJI_RE.sub(" ", name)
+    name = _HASHTAG_RE.sub(" ", name)
+    # Collapse newlines and extra whitespace
+    name = re.sub(r'\s+', ' ', name).strip()
+    return name
+
+
 def _fuzzy_ratio(a: str, b: str) -> float:
     if not a or not b:
         return 0.0
@@ -703,6 +745,8 @@ def _spanish_parse(name: str) -> dict:
 
 
 def parse_media_name(name: str) -> dict:
+    # Pre-process: strip emojis, hashtags, filler words before PTN
+    name = _preprocess_raw_name(name)
     try:
         ptn = PTN.parse(name) or {}
     except Exception as e:

@@ -45,6 +45,21 @@ _CODEC_TAG_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Strip hashtags entirely (#word → empty); they are Telegram metadata, never part of a title.
+_HASHTAG_RE = re.compile(r"#\w+")
+
+# Spanish filler words that appear in captions but are not part of media titles.
+# These are safely removable without risk of corrupting legitimate titles.
+_SPANISH_FILLER_RE = re.compile(
+    r"\b(?:"
+    r"subtitulad[ao]|subtitulos|sub[ .]?espanol|sub[ .]?esp|"
+    r"vose|vosee|vo\b|ve\b|"
+    r"castellano|audio[ .]?latino|latino|dual|multi[ .]?audio|"
+    r"completo|completa"
+    r")\b",
+    re.IGNORECASE,
+)
+
 
 def is_media(message):
     return next(
@@ -138,6 +153,12 @@ def clean_filename(filename: str) -> str:
 
     # 2 – Remove decorative unicode symbols
     filename = _DECORATION_PATTERN.sub(" ", filename)
+
+    # 2a – Strip Telegram / social-media hashtags (never part of a title)
+    filename = _HASHTAG_RE.sub(" ", filename)
+
+    # 2b – Strip Spanish filler caption words (Subtitulada, VOSE, etc.)
+    filename = _SPANISH_FILLER_RE.sub(" ", filename)
 
     # 3 – Unicode normalize: decompose accented chars so we can strip diacritics
     #     e.g. "José" → "Jose", "acción" → "accion", "télé" → "tele"
