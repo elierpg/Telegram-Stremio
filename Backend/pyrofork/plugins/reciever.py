@@ -1,10 +1,14 @@
+import re
 from asyncio import create_task, sleep as asleep, Queue, Lock
 import Backend
 from Backend.helper.task_manager import edit_message
 from Backend.logger import LOGGER
 from Backend import db
 from Backend.helper.settings_manager import SettingsManager
-from Backend.helper.pyro import clean_filename, get_readable_file_size, remove_urls
+from Backend.helper.pyro import (
+    clean_filename, get_readable_file_size, remove_urls,
+    has_video_extension, pick_metadata_source,
+)
 from Backend.helper.metadata import metadata
 from Backend.helper.auto_catalog import start_single_media_catalog_sync
 from pyrogram import filters, Client
@@ -27,8 +31,13 @@ def _is_supported_media(message: Message) -> bool:
         mime_type = message.document.mime_type or ""
         if mime_type.startswith("video/"):
             return True
-        candidate = message.caption or message.document.file_name or ""
-        if parse_split_info(candidate):
+        file_name = message.document.file_name or ""
+        if has_video_extension(file_name):
+            return True
+        caption = message.caption or ""
+        if parse_split_info(caption) or parse_split_info(file_name):
+            return True
+        if caption and re.search(r'\.(mkv|mp4|avi)\b', caption.lower()):
             return True
     return False
 
@@ -59,7 +68,9 @@ async def file_receive_handler(client: Client, message: Message):
         try:
             if _is_supported_media(message):
                 file = message.video or message.document
-                title = message.caption or file.file_name
+                caption = message.caption or ""
+                file_name = file.file_name or ""
+                title = pick_metadata_source(caption, file_name)
                 msg_id = message.id
                 raw_size = file.file_size
                 size = get_readable_file_size(file.file_size)
@@ -105,7 +116,9 @@ async def file_edited_handler(client: Client, message: Message):
         try:
             if _is_supported_media(message):
                 file = message.video or message.document
-                title = message.caption or file.file_name
+                caption = message.caption or ""
+                file_name = file.file_name or ""
+                title = pick_metadata_source(caption, file_name)
                 msg_id = message.id
                 raw_size = file.file_size
                 size = get_readable_file_size(file.file_size)

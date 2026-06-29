@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -9,7 +10,10 @@ from pyrogram.errors import FloodWait, ChannelPrivate, ChatAdminRequired
 from Backend.logger import LOGGER
 from Backend.helper.encrypt import encode_string, decode_string
 from Backend.helper.metadata import metadata
-from Backend.helper.pyro import clean_filename, get_readable_file_size, remove_urls
+from Backend.helper.pyro import (
+    clean_filename, get_readable_file_size, remove_urls,
+    has_video_extension, pick_metadata_source,
+)
 from Backend.helper.split_files import parse_split_info, strip_part_suffix
 
 SCAN_BATCH_SIZE = 200          
@@ -425,16 +429,24 @@ class ScanManager:
             if mime.startswith("video/"):
                 is_supported = True
             else:
-                candidate = message.caption or message.document.file_name or ""
-                if parse_split_info(candidate):
+                file_name = message.document.file_name or ""
+                if has_video_extension(file_name):
                     is_supported = True
+                else:
+                    caption = message.caption or ""
+                    if parse_split_info(caption) or parse_split_info(file_name):
+                        is_supported = True
+                    elif caption and re.search(r'\.(mkv|mp4|avi)\b', caption.lower()):
+                        is_supported = True
 
         if not is_supported:
             s["counters"]["skipped_nonvid"] += 1
             return
 
         file = message.video or message.document
-        title = message.caption or file.file_name
+        caption = message.caption or ""
+        file_name = file.file_name or ""
+        title = pick_metadata_source(caption, file_name)
         msg_id = message.id
         raw_size = file.file_size
         size = get_readable_file_size(file.file_size)

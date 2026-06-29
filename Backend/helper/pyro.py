@@ -95,6 +95,39 @@ def get_readable_file_size(size_in_bytes):
     return f'{size_in_bytes:.2f}{SIZE_UNITS[index]}' if index > 0 else f'{size_in_bytes:.0f}B'
 
 
+VIDEO_EXTENSIONS = (
+    '.mkv', '.mp4', '.avi', '.ts', '.m4v', '.mov', '.wmv', '.webm',
+    '.flv', '.m2ts', '.mpg', '.mpeg', '.3gp', '.ogv', '.divx', '.vob',
+)
+
+def has_video_extension(filename: str) -> bool:
+    return filename.lower().endswith(VIDEO_EXTENSIONS) if filename else False
+
+def has_media_metadata(text: str) -> bool:
+    if not text:
+        return False
+    lower = text.lower()
+    if re.search(r'\.(mkv|mp4|avi|ts|m4v|mov|wmv|webm|flv)\b', lower):
+        return True
+    has_year = bool(re.search(r'\b(19|20)\d{2}\b', text))
+    has_quality = bool(re.search(r'\b\d{3,4}p\b|\b4K\b|\bUHD\b', text, re.IGNORECASE))
+    if has_year and has_quality:
+        return True
+    return False
+
+def pick_metadata_source(caption: str, file_name: str) -> str:
+    if not caption and not file_name:
+        return ""
+    if not caption:
+        return file_name
+    if not file_name:
+        return caption
+    if has_media_metadata(caption):
+        return caption
+    if has_media_metadata(file_name):
+        return file_name
+    return file_name
+
 def clean_filename(filename: str) -> str:
     if not filename:
         return "unknown_file"
