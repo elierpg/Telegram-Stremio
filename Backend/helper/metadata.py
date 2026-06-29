@@ -1063,7 +1063,7 @@ def _build_tmdb_tv_payload(tv, ep, season, episode, quality, encoded_string) -> 
 def _build_imdb_movie_payload(imdb, imdb_id, title, quality, encoded_string) -> dict:
     images = format_imdb_images(imdb_id)
     return {
-        "tmdb_id": imdb.get("moviedb_id") or (imdb_id.replace("tt", "") if imdb_id else None),
+        "tmdb_id": imdb.get("moviedb_id") or None,
         "imdb_id": imdb_id,
         "title": imdb.get("title", title),
         "year": imdb.get("releaseDetailed", {}).get("year", 0),
@@ -1085,7 +1085,7 @@ def _build_imdb_movie_payload(imdb, imdb_id, title, quality, encoded_string) -> 
 def _build_imdb_tv_payload(imdb, ep, imdb_id, title, season, episode, quality, encoded_string) -> dict:
     images = format_imdb_images(imdb_id)
     return {
-        "tmdb_id": imdb.get("moviedb_id") or (imdb_id.replace("tt", "") if imdb_id else None),
+        "tmdb_id": imdb.get("moviedb_id") or None,
         "imdb_id": imdb_id,
         "title": imdb.get("title", title),
         "year": imdb.get("releaseDetailed", {}).get("year", 0),
@@ -1382,6 +1382,20 @@ async def fetch_tv_metadata(title, season, episode, encoded_string, year=None, q
             imdb_tv = None
             use_tmdb = True
 
+    # Cross-reference: if Cinemeta didn't provide moviedb_id, try to get real TMDb ID
+    # so the payload has a valid tmdb_id and the DB dedup by tmdb_id works.
+    if imdb_tv and not use_tmdb and not imdb_tv.get("moviedb_id") and not explicit_imdb_id:
+        try:
+            tmdb_result = await safe_tmdb_search(title, "tv", year)
+            if tmdb_result and getattr(tmdb_result, "id", None):
+                imdb_tv["moviedb_id"] = tmdb_result.id
+                LOGGER.info(
+                    f"Cross-referenced TMDb id={tmdb_result.id} for '{title}' "
+                    f"(imdb_id={imdb_id}) from Cinemeta data"
+                )
+        except Exception:
+            pass
+
     if use_tmdb or not imdb_tv:
         LOGGER.info(f"No valid Cinemeta TV data for '{title}' S{season:02d}E{episode:02d} -> using TMDb")
         if not tmdb_id:
@@ -1427,6 +1441,19 @@ async def fetch_movie_metadata(title, encoded_string, year=None, quality=None, d
             LOGGER.info(f"IMDb movie title mismatch for '{title}': got '{imdb_details.get('title', '')}' (sim={sim:.2f}) -> TMDb")
             imdb_details = None
             use_tmdb = True
+
+    # Cross-reference TMDb ID when Cinemeta doesn't provide moviedb_id
+    if imdb_details and not use_tmdb and not imdb_details.get("moviedb_id") and not explicit_imdb_id:
+        try:
+            tmdb_result = await safe_tmdb_search(title, "movie", year)
+            if tmdb_result and getattr(tmdb_result, "id", None):
+                imdb_details["moviedb_id"] = tmdb_result.id
+                LOGGER.info(
+                    f"Cross-referenced TMDb id={tmdb_result.id} for movie '{title}' "
+                    f"(imdb_id={imdb_id}) from Cinemeta data"
+                )
+        except Exception:
+            pass
 
     if use_tmdb or not imdb_details:
         LOGGER.info(f"No valid Cinemeta movie data for '{title}' (year={year}) -> using TMDb")

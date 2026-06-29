@@ -1,5 +1,6 @@
 import secrets
 import string
+import unicodedata
 from asyncio import create_task
 from bson import ObjectId
 import motor.motor_asyncio
@@ -15,6 +16,19 @@ import re
 from Backend.helper.encrypt import decode_string, encode_string
 from Backend.helper.modal import Episode, MovieSchema, QualityDetail, QualityPart, Season, TVShowSchema
 from Backend.helper.task_manager import delete_message
+
+
+def _normalize_str(text: str) -> str:
+    """Normalize a string for accent-insensitive comparison.
+
+    Strips combining diacritics, lowercases, and collapses whitespace.
+    """
+    if not text:
+        return ""
+    t = unicodedata.normalize('NFD', str(text))
+    t = re.sub(r'[\u0300-\u036f]', '', t)
+    t = re.sub(r'[^\w\s]', ' ', t)
+    return re.sub(r'\s+', ' ', t).strip().lower()
 
 
 
@@ -1047,6 +1061,26 @@ class Database:
                     "release_year": release_year
                 })
 
+            # 4th fallback: accent-insensitive title + year search
+            if not movie and title and release_year:
+                norm_query = _normalize_str(title)
+                cursor = self.dbs[db_key]["movie"].find(
+                    {"release_year": release_year},
+                    {"title": 1},
+                ).limit(30)
+                async for candidate in cursor:
+                    if _normalize_str(candidate.get("title", "")) == norm_query:
+                        movie = await self.dbs[db_key]["movie"].find_one(
+                            {"_id": candidate["_id"]}
+                        )
+                        if movie:
+                            LOGGER.info(
+                                f"Found existing Movie by normalized title: "
+                                f"'{candidate.get('title', '')}' (year={release_year}) "
+                                f"for query '{title}'"
+                            )
+                            break
+
             if movie:
                 existing_movie = movie
                 existing_db_key = db_key
@@ -1131,6 +1165,26 @@ class Database:
                     "title": title,
                     "release_year": release_year
                 })
+
+            # 4th fallback: accent-insensitive title + year search
+            if not tv and title and release_year:
+                norm_query = _normalize_str(title)
+                cursor = self.dbs[db_key]["tv"].find(
+                    {"release_year": release_year},
+                    {"title": 1},
+                ).limit(30)
+                async for candidate in cursor:
+                    if _normalize_str(candidate.get("title", "")) == norm_query:
+                        tv = await self.dbs[db_key]["tv"].find_one(
+                            {"_id": candidate["_id"]}
+                        )
+                        if tv:
+                            LOGGER.info(
+                                f"Found existing TV by normalized title: "
+                                f"'{candidate.get('title', '')}' (year={release_year}) "
+                                f"for query '{title}'"
+                            )
+                            break
 
             if tv:
                 existing_tv = tv
