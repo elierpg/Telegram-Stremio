@@ -45,6 +45,17 @@ _EMOJI_RE = re.compile(
 # Hashtag pattern (#word → stripped before matching)
 _HASHTAG_RE = re.compile(r"#\w+")
 
+# SxE notation (1x1, 5X14) — normalised to S01E01 before PTN parsing so that
+# PTN itself extracts both the title and the season/episode correctly.
+_SXE_RE = re.compile(r'(?<![a-zA-Z])(\d{1,2})[xX](\d{1,3})(?![a-zA-Z])')
+
+def _normalize_sxe(name: str) -> str:
+    if not name:
+        return name
+    def _replacer(m):
+        return f"S{int(m.group(1)):02d}E{int(m.group(2)):02d}"
+    return _SXE_RE.sub(_replacer, name)
+
 def _aggressive_normalize(name: str) -> str:
     """Ultra-aggressive normalization for messy filenames with mixed encodings.
 
@@ -536,6 +547,8 @@ def _spanish_parse(name: str) -> dict:
 def parse_media_name(name: str) -> dict:
     # Pre-process: strip emojis, hashtags, filler words before PTN
     name = _preprocess_raw_name(name)
+    # Normalise SxE (1x1 → S01E01) so PTN can parse season/episode natively
+    name = _normalize_sxe(name)
     try:
         ptn = PTN.parse(name) or {}
     except Exception as e:
