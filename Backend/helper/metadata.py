@@ -475,7 +475,8 @@ def _spanish_parse(name: str) -> dict:
     Handles:
       - 1x01, 01x01, 1X01, 01X01
       - E01S01, E1S1, Ep01S01 (episode-first order)
-      - T01E01 / Temporada 1 Episodio 1 / Capitulo 1
+      - S01E01, S1E1, T01E01 (season-first order)
+      - Temporada 1 Episodio 1 / Capitulo 1
       - Season/Episode followed by an episode title in the filename
       - Various separators: spaces, dots, underscores, bars
     """
@@ -523,6 +524,18 @@ def _spanish_parse(name: str) -> dict:
             result['season'] = int(m.group(1))
             result['episode'] = int(m.group(2))
 
+    # ── Pattern D: S01E01, S1E1, Season 01 Episode 01 (season-first) ────
+    if 'season' not in result:
+        m = re.search(
+            r'(?:S|Season|T|Temporada)[\s._-]*(\d{1,2})'
+            r'[\s._-]*'
+            r'(?:E|Ep|Episodio|Capitulo)?[\s._-]*(\d{1,3})',
+            name, re.IGNORECASE,
+        )
+        if m:
+            result['season'] = int(m.group(1))
+            result['episode'] = int(m.group(2))
+
     # ── Extract title: everything before the matched pattern ─────────────
     if 'season' in result and not result.get('title'):
         # Find where the season/ep pattern starts
@@ -531,6 +544,7 @@ def _spanish_parse(name: str) -> dict:
             r'(?:E|Ep|Episodio)[\s._-]*\d{1,3}[\s._-]*(?:S|Season|T|Temporada)[\s._-]*\d{1,2}',
             r'(?:(?:S|Season|T|Temporada)[\s._-]*)?\d{1,2}[\s._]*[xX][\s._]*(?:E|Ep|Episodio|Capitulo)?[\s._]*\d{1,3}',
             r'(?:T|Temporada)[\s._-]*\d{1,2}[\s._-]+(?:E|Ep|Episodio|Capitulo)[\s._-]*\d{1,3}',
+            r'(?:S|Season|T|Temporada)[\s._-]*\d{1,2}[\s._-]*(?:E|Ep|Episodio|Capitulo)?[\s._-]*\d{1,3}',
         ]:
             match = re.search(pat, name, re.IGNORECASE)
             if match:
@@ -545,6 +559,8 @@ def _spanish_parse(name: str) -> dict:
 
 
 def parse_media_name(name: str) -> dict:
+    # Preserve original for _spanish_parse (accents, 1x1 notation intact)
+    original = name
     # Pre-process: strip emojis, hashtags, filler words before PTN
     name = _preprocess_raw_name(name)
     # Normalise SxE (1x1 → S01E01) so PTN can parse season/episode natively
@@ -575,8 +591,8 @@ def parse_media_name(name: str) -> dict:
         except Exception as e:
             LOGGER.warning(f"GuessIt parsing failed for {name}: {e}")
 
-    # Spanish/alternative format parser — fills what PTN + guessit missed
-    sp = _spanish_parse(name)
+    # Spanish/alternative format parser — uses original (accents, 1x1 notation intact)
+    sp = _spanish_parse(original)
     if sp.get("season") is not None and parsed.get("season") is None:
         parsed["season"] = sp["season"]
     if sp.get("episode") is not None and parsed.get("episode") is None:
@@ -585,7 +601,7 @@ def parse_media_name(name: str) -> dict:
         parsed["title"] = sp["title"]
 
     # Generic heuristic corrections: extract episode title, force TV type
-    parsed = _clean_parsed_title(name, parsed)
+    parsed = _clean_parsed_title(original, parsed)
 
     return parsed
 
