@@ -125,6 +125,8 @@ def has_media_metadata(text: str) -> bool:
     lower = text.lower()
     if re.search(r'\.(mkv|mp4|avi|ts|m4v|mov|wmv|webm|flv)\b', lower):
         return True
+    if re.search(r'\b\d{1,2}[xX]\d{1,3}\b', text) or re.search(r'[SE]\d{2,3}E\d{2,3}', text, re.IGNORECASE):
+        return True
     has_year = bool(re.search(r'\b(19|20)\d{2}\b', text))
     has_quality = bool(re.search(r'\b\d{3,4}p\b|\b4K\b|\bUHD\b', text, re.IGNORECASE))
     if has_year and has_quality:
